@@ -12,6 +12,7 @@ const publicNavItems = computed(() => {
   const items = [
     { name: 'home', label: '首页', path: '/' },
     { name: 'jobs', label: '职位', path: '/jobs' },
+    { name: 'contact', label: '联系', path: '/contact' },
     { name: 'notifications', label: '通知', path: '/notifications' },
     { name: 'messages', label: '对话', path: '/messages' },
     { name: 'workbench', label: '工作台', path: '/workbench' },
@@ -19,7 +20,7 @@ const publicNavItems = computed(() => {
   ]
   const role = getSession()?.user?.role
   if (role === 'JOB_SEEKER' || role === 'STUDENT') {
-    items.splice(2, 0, { name: 'applications', label: '我的投递', path: '/applications' })
+    items.splice(3, 0, { name: 'applications', label: '我的投递', path: '/applications' })
   }
   return items
 })
@@ -47,13 +48,8 @@ async function handleLogout() {
   router.push('/')
 }
 
-function openLogin() {
-  showLogin.value = true
-}
-
-function closeLogin() {
-  showLogin.value = false
-}
+function openLogin() { showLogin.value = true }
+function closeLogin() { showLogin.value = false }
 
 watch(session, (value) => {
   if (value) showLogin.value = false
@@ -63,7 +59,7 @@ watch(session, (value) => {
 <template>
   <div class="page">
     <header v-if="!route.path.startsWith('/admin')" class="top-nav">
-      <router-link class="logo" to="/" aria-label="职策首页">
+      <router-link class="logo" to="/" aria-label="首页">
         <span>职策</span>
       </router-link>
 
@@ -106,7 +102,7 @@ watch(session, (value) => {
     </main>
 
     <div v-if="showLogin" class="login-modal-backdrop" @click.self="closeLogin">
-      <section class="login-modal-card" role="dialog" aria-modal="true" aria-label="登录职策">
+      <section class="login-modal-card" role="dialog" aria-modal="true" aria-label="登录">
         <button class="login-close-btn" type="button" aria-label="关闭登录窗口" @click="closeLogin">×</button>
         <LoginPanel @success="closeLogin" />
       </section>

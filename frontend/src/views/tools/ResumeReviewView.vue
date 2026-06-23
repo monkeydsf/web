@@ -16,37 +16,57 @@ const fileSize = computed(() => {
   const kb = file.value.size / 1024
   return kb > 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb.toFixed(0)} KB`
 })
+
 const renderedResult = computed(() => renderMarkdown(result.value, '上传简历并发送后，这里会显示 AI 返回的修改建议。'))
 
 function handleFileChange(event) {
   const selected = event.target.files?.[0]
-  error.value = ''; result.value = ''
-  if (!selected) { file.value = null; return }
+  error.value = ''
+  result.value = ''
+  if (!selected) {
+    file.value = null
+    return
+  }
   const allowed = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
   const allowedExtension = /\.(pdf|doc|docx)$/i.test(selected.name)
   if (!allowed.includes(selected.type) && !allowedExtension) {
     error.value = '请上传 PDF、DOC 或 DOCX 格式的简历。'
-    event.target.value = ''; file.value = null; return
+    event.target.value = ''
+    file.value = null
+    return
   }
   file.value = selected
 }
 
-function clearFile() { file.value = null; result.value = ''; error.value = '' }
+function clearFile() {
+  file.value = null
+  result.value = ''
+  error.value = ''
+}
 
 async function sendToAi() {
-  if (!file.value) { error.value = '请先上传简历文件。'; return }
-  sending.value = true; error.value = ''; result.value = ''
+  if (!file.value) {
+    error.value = '请先上传简历文件。'
+    return
+  }
+  sending.value = true
+  error.value = ''
+  result.value = ''
   const formData = new FormData()
   formData.append('file', file.value)
   formData.append('prompt', prompt.value)
   try {
     const data = await api('/ai/resume-review', {
-      method: 'POST', body: formData, timeout: 70000
+      method: 'POST',
+      body: formData,
+      timeout: 70000
     })
     result.value = data.content || 'AI 没有返回有效内容，请稍后重试。'
   } catch (err) {
-    error.value = err.message || 'AI 调用失败，请检查后端 API Key 配置。'
-  } finally { sending.value = false }
+    error.value = err.message || 'AI 调用失败，请检查后端和百炼 API Key。'
+  } finally {
+    sending.value = false
+  }
 }
 </script>
 

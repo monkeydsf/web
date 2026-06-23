@@ -1,4 +1,4 @@
--- Supplemental SQL for campus_career.
+﻿-- Supplemental SQL for campus_career.
 -- Adds resume file fields, application chat messages, and richer multi-major demo jobs.
 
 CREATE DATABASE IF NOT EXISTS campus_career DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
@@ -173,3 +173,4 @@ SELECT * FROM (
          '电子商务、市场营销相关专业，熟悉电商平台规则优先。', 'OPEN', NOW()
 ) AS row_data
 WHERE NOT EXISTS (SELECT 1 FROM jobs WHERE title = '电商运营专员' AND company = '海蓝优选');
+

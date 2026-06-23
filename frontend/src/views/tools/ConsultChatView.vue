@@ -9,7 +9,7 @@ const input = ref('')
 const loading = ref(false)
 const error = ref('')
 const messages = ref([
-  { role: 'assistant', content: '你好，我是职策对话咨询。你可以问简历、岗位选择、面试准备、投递节奏和 Offer 判断。' }
+  { role: 'assistant', content: '你好，我是职场对话顾问。你可以直接问简历、岗位选择、面试准备、投递节奏和 Offer 判断。' }
 ])
 const chatBody = ref(null)
 
@@ -23,21 +23,19 @@ const quickPrompts = [
 const canSend = computed(() => input.value.trim() && !loading.value)
 
 function scrollToBottom() {
-  nextTick(() => { if (chatBody.value) chatBody.value.scrollTop = chatBody.value.scrollHeight })
+  nextTick(() => {
+    if (chatBody.value) chatBody.value.scrollTop = chatBody.value.scrollHeight
+  })
 }
 
 function buildPrompt(question) {
-  const history = messages.value.slice(-8).map((m) => `${m.role === 'user' ? '学生' : '职策'}：${m.content}`).join('\n')
-  return `你是职策平台的求职咨询助手，请用中文回答，语气直接、具体、可执行。
-回答要求：
-1. 优先给行动建议，不要空泛鼓励
-2. 如果信息不足，先说明需要补充哪些信息
-3. 可以用 Markdown 分点输出
+  const history = messages.value.slice(-8).map((m) => `${m.role === 'user' ? '学生' : '顾问'}：${m.content}`).join('\n')
+  return `你是求职对话顾问。请用中文回答，直接给出行动建议，不要空话。需要时先指出缺少什么信息，再给结论。
 
 历史对话：
 ${history}
 
-学生最新问题：
+学生问题：
 ${question}`
 }
 
@@ -45,9 +43,12 @@ async function sendMessage(text = input.value) {
   const question = text.trim()
   if (!question || loading.value) return
   messages.value.push({ role: 'user', content: question })
-  input.value = ''; error.value = ''; loading.value = true; scrollToBottom()
+  input.value = ''
+  error.value = ''
+  loading.value = true
+  scrollToBottom()
   try {
-    const data = await api('/ai/prompt-test', {
+    const data = await api('/ai/tools/consult', {
       method: 'POST',
       body: JSON.stringify({ prompt: buildPrompt(question) }),
       timeout: 70000
@@ -55,10 +56,16 @@ async function sendMessage(text = input.value) {
     messages.value.push({ role: 'assistant', content: data.content || 'AI 没有返回有效内容，请换个问法再试。' })
   } catch (err) {
     error.value = err.message || '咨询失败，请检查后端和百炼 API Key。'
-  } finally { loading.value = false; scrollToBottom() }
+  } finally {
+    loading.value = false
+    scrollToBottom()
+  }
 }
 
-function useQuickPrompt(prompt) { input.value = prompt; sendMessage(prompt) }
+function useQuickPrompt(prompt) {
+  input.value = prompt
+  sendMessage(prompt)
+}
 </script>
 
 <template>
@@ -75,7 +82,6 @@ function useQuickPrompt(prompt) { input.value = prompt; sendMessage(prompt) }
 
     <section class="tool-content">
       <div class="consult-v2">
-        <!-- Quick prompts -->
         <aside class="cv2-side">
           <div class="cv2-side-header">
             <h3>快捷问题</h3>
@@ -90,7 +96,6 @@ function useQuickPrompt(prompt) { input.value = prompt; sendMessage(prompt) }
           >{{ prompt }}</button>
         </aside>
 
-        <!-- Chat -->
         <main class="cv2-chat">
           <div ref="chatBody" class="cv2-messages">
             <div v-for="(message, index) in messages" :key="index" class="cv2-msg" :class="message.role">

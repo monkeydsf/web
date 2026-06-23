@@ -37,13 +37,14 @@ const routes = [
     component: ToolPromptView,
     meta: {
       tool: {
-        title: '找岗位',
+        title: '岗位匹配',
         tag: 'Job match',
         intro: '输入专业、技能、城市和薪资期望，生成适合投递的岗位方向。',
         inputLabel: '求职条件',
         placeholder: '例如：软件工程，本科，熟悉 Java、Spring Boot、MySQL，希望在杭州找后端实习，薪资 180-250/天。',
         button: '生成岗位建议',
-        template: '请根据以下求职条件，输出适合投递的岗位方向、关键词、城市建议、筛选规则和投递优先级：'
+        template: '请根据以下求职条件，输出适合投递的岗位方向、关键词、城市建议、筛选规则和投递优先级：',
+        toolKey: 'job-match'
       }
     }
   },
@@ -53,13 +54,14 @@ const routes = [
     component: ToolPromptView,
     meta: {
       tool: {
-        title: '练面试',
+        title: '面试表达',
         tag: 'Interview practice',
         intro: '输入目标岗位和技术栈，生成面试问题、参考回答和追问方向。',
         inputLabel: '面试目标',
         placeholder: '例如：Java 后端实习生，项目用过 Spring Boot、Vue、MySQL，想练项目介绍和八股问题。',
         button: '生成面试练习',
-        template: '请扮演面试官，基于以下目标生成面试练习，包括自我介绍修改、10 个问题、参考回答要点和追问：'
+        template: '请扮演面试官，基于以下目标生成面试练习，包括自我介绍修改、10 个问题、参考回答要点和追问：',
+        toolKey: 'interview-practice'
       }
     }
   },
@@ -75,7 +77,8 @@ const routes = [
         inputLabel: 'Offer 情况',
         placeholder: '例如：杭州后端实习，220/天，每周 5 天，要求尽快入职；我还有另一个 200/天 的 offer。',
         button: '生成谈判方案',
-        template: '请根据以下 Offer 情况，输出风险判断、可谈条件、沟通顺序和可直接发送的话术：'
+        template: '请根据以下 Offer 情况，输出风险判断、可谈条件、沟通顺序和可直接发送的话术：',
+        toolKey: 'offer-negotiation'
       }
     }
   },
@@ -91,7 +94,8 @@ const routes = [
         inputLabel: '个人偏好',
         placeholder: '例如：我喜欢独立完成任务，能接受代码细节，不太喜欢频繁汇报，遇到压力会先查资料再求助。',
         button: '生成职业画像',
-        template: '请根据以下个人偏好，输出职业性格画像、适合岗位、团队环境建议和需要避开的工作类型：'
+        template: '请根据以下个人偏好，输出职业性格画像、适合岗位、团队环境建议和需要避开的工作类型：',
+        toolKey: 'personality-test'
       }
     }
   },
@@ -107,7 +111,8 @@ const routes = [
         inputLabel: '目标与基础',
         placeholder: '例如：30 天内找到 Java 实习，已学 Java 基础、Spring Boot、MySQL，有一个课程项目，简历还没完善。',
         button: '生成 30 天计划',
-        template: '请根据以下目标与基础，生成 30 天求职规划，按周拆解目标，并给出每天任务：'
+        template: '请根据以下目标与基础，生成 30 天求职规划，按周拆解目标，并给出每天任务：',
+        toolKey: '30-day-plan'
       }
     }
   },
@@ -123,7 +128,8 @@ const routes = [
         inputLabel: '岗位与个人亮点',
         placeholder: '例如：投递 Java 后端实习，JD 要求 Spring Boot 和 MySQL。我做过校园求职系统，有登录、岗位、投递模块。',
         button: '生成投递话术',
-        template: '请根据以下岗位与个人亮点，生成邮件标题、邮件正文、Boss 开场白和内推话术：'
+        template: '请根据以下岗位与个人亮点，生成邮件标题、邮件正文、Boss 开场白和内推话术：',
+        toolKey: 'application-script'
       }
     }
   },
@@ -139,7 +145,8 @@ const routes = [
         inputLabel: '公司与岗位信息',
         placeholder: '例如：小型外包公司，岗位写全栈开发实习，面试说要能加班，薪资面议，试用期较长。',
         button: '生成风险雷达',
-        template: '请根据以下公司与岗位信息，输出风险等级、需要追问的问题、可接受条件和避坑建议：'
+        template: '请根据以下公司与岗位信息，输出风险等级、需要追问的问题、可接受条件和避坑建议：',
+        toolKey: 'company-radar'
       }
     }
   },

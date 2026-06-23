@@ -3,6 +3,14 @@ import { ref } from 'vue'
 const API_BASE = 'http://localhost:8087/api'
 const SESSION_KEY = 'campus-career-session'
 
+function safeJsonParse(text) {
+  try {
+    return text ? JSON.parse(text) : null
+  } catch {
+    return { message: text }
+  }
+}
+
 function readSession() {
   const raw = localStorage.getItem(SESSION_KEY)
   return raw ? JSON.parse(raw) : null
@@ -61,7 +69,7 @@ export async function api(path, options = {}) {
       signal: controller.signal
     })
     const text = await response.text()
-    const data = text ? JSON.parse(text) : null
+    const data = safeJsonParse(text)
     if (!response.ok) {
       if (response.status === 401 && !skipAuthClear) {
         clearSession()

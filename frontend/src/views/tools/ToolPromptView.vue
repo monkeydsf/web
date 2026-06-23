@@ -14,33 +14,45 @@ const tool = computed(() => route.meta.tool || {
   inputLabel: '输入内容',
   placeholder: '请描述你的情况。',
   button: '生成建议',
-  template: '请根据以下内容给出建议：'
+  template: '请根据以下内容给出建议：',
+  toolKey: 'consult'
 })
 
 const input = ref('')
 const result = ref('')
 const loading = ref(false)
 const error = ref('')
+
 const renderedResult = computed(() => renderMarkdown(result.value, '填写左侧内容后，点击生成按钮，这里会显示 AI 输出。'))
 
-watch(
-  () => route.fullPath,
-  () => { input.value = ''; result.value = ''; error.value = '' }
-)
+watch(() => route.fullPath, () => {
+  input.value = ''
+  result.value = ''
+  error.value = ''
+})
 
 async function generate() {
-  if (!input.value.trim()) { error.value = '请先填写内容。'; return }
-  loading.value = true; error.value = ''; result.value = ''
+  if (!input.value.trim()) {
+    error.value = '请先填写内容。'
+    return
+  }
+  loading.value = true
+  error.value = ''
+  result.value = ''
   try {
-    const data = await api('/ai/prompt-test', {
+    const data = await api(`/ai/tools/${tool.value.toolKey || route.name}`, {
       method: 'POST',
-      body: JSON.stringify({ prompt: `${tool.value.template}\n\n${input.value.trim()}` }),
+      body: JSON.stringify({
+        prompt: `${tool.value.template}\n\n${input.value.trim()}`
+      }),
       timeout: 70000
     })
     result.value = data.content || 'AI 没有返回有效内容，请稍后重试。'
   } catch (err) {
     error.value = err.message || '生成失败，请检查后端和百炼 API Key。'
-  } finally { loading.value = false }
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 

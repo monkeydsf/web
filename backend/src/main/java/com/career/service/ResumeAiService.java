@@ -25,11 +25,11 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.Set;
 
 @Service
@@ -50,32 +50,77 @@ public class ResumeAiService {
         this.apiKey = apiKey;
         this.endpoint = endpoint;
         this.model = model;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
+        this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     }
 
     public AiResumeReviewResponse review(MultipartFile file, String prompt) {
-        if (!StringUtils.hasText(apiKey)) {
-            throw new IllegalStateException("百炼 API Key 未配置，请设置 DASHSCOPE_API_KEY 或 app.bailian.api-key");
-        }
+        ensureApiKey();
         validateFile(file);
         String resumeText = extractText(file);
         if (!StringUtils.hasText(resumeText)) {
             throw new IllegalArgumentException("未能从简历文件中读取到文本内容");
         }
         String finalPrompt = StringUtils.hasText(prompt) ? prompt.trim() : "请帮我修改这份简历。";
-        return callBailian(resumeText, finalPrompt);
+        return callBailianPrompt(defaultResumeSystemPrompt(), """
+                用户修改要求：
+                %s
+
+                简历文本：
+                %s
+                """.formatted(finalPrompt, resumeText));
     }
 
     public AiResumeReviewResponse promptOnly(String prompt) {
-        if (!StringUtils.hasText(apiKey)) {
-            throw new IllegalStateException("百炼 API Key 未配置，请设置 DASHSCOPE_API_KEY 或 app.bailian.api-key");
-        }
+        ensureApiKey();
         if (!StringUtils.hasText(prompt)) {
             throw new IllegalArgumentException("提示词不能为空");
         }
-        return callBailian("无简历文件，本次仅测试提示词调用。", prompt.trim());
+        return callBailianPrompt(defaultChatSystemPrompt(), prompt.trim());
+    }
+
+    public AiResumeReviewResponse generateTool(String toolKey, String input, String context) {
+        ensureApiKey();
+        if (!StringUtils.hasText(input)) {
+            throw new IllegalArgumentException("输入内容不能为空");
+        }
+
+        String key = toolKey == null ? "" : toolKey.trim().toLowerCase(Locale.ROOT);
+        String ctx = StringUtils.hasText(context) ? context.trim() : "";
+        return switch (key) {
+            case "job-match" -> callBailianPrompt(
+                    "你是岗位匹配顾问。输出岗位方向、关键词、城市建议、筛选规则和投递优先级，直接给结论。",
+                    "求职需求：\n%s\n\n参考信息：\n%s".formatted(input.trim(), ctx)
+            );
+            case "interview-practice" -> callBailianPrompt(
+                    "你是面试训练教练。输出模拟问题、参考回答要点、追问方向和复习清单，务实直接。",
+                    "目标岗位：\n%s\n\n补充信息：\n%s".formatted(input.trim(), ctx)
+            );
+            case "offer-negotiation" -> callBailianPrompt(
+                    "你是 Offer 谈判顾问。输出风险判断、可谈条件、沟通话术和优先级，给出明确建议。",
+                    "Offer 情况：\n%s\n\n补充信息：\n%s".formatted(input.trim(), ctx)
+            );
+            case "personality-test" -> callBailianPrompt(
+                    "你是职业性格分析助手。输出性格画像、适合岗位、团队环境建议和避雷提醒。",
+                    "个人偏好：\n%s\n\n补充信息：\n%s".formatted(input.trim(), ctx)
+            );
+            case "30-day-plan", "thirty-day-plan" -> callBailianPrompt(
+                    "你是 30 天求职规划师。输出按周拆解的计划、每日任务、检查点和执行节奏，必须可落地。",
+                    "目标与基础：\n%s\n\n补充信息：\n%s".formatted(input.trim(), ctx)
+            );
+            case "application-script" -> callBailianPrompt(
+                    "你是投递文案助手。输出邮件标题、正文、开场白和内推话术，要求简洁专业，可直接复制。",
+                    "岗位与个人亮点：\n%s\n\n补充信息：\n%s".formatted(input.trim(), ctx)
+            );
+            case "company-radar" -> callBailianPrompt(
+                    "你是公司避坑分析师。输出风险等级、需要追问的问题、可接受条件和避坑建议，结论优先。",
+                    "公司与岗位信息：\n%s\n\n补充信息：\n%s".formatted(input.trim(), ctx)
+            );
+            case "consult" -> callBailianPrompt(
+                    "你是求职对话顾问。先给可执行建议，再指出需要补充的信息，回答要短而直接。",
+                    "用户问题：\n%s\n\n历史上下文：\n%s".formatted(input.trim(), ctx.isBlank() ? "无" : ctx)
+            );
+            default -> throw new IllegalArgumentException("不支持的 AI 工具类型: " + toolKey);
+        };
     }
 
     public ResumeMatchResponse matchResumeToJob(Resume resume, Job job) {
@@ -86,18 +131,19 @@ public class ResumeAiService {
         List<String> gaps = new ArrayList<>();
         List<String> suggestions = new ArrayList<>();
 
-        if (resumeText.contains(job.getTitle().toLowerCase(Locale.ROOT))) {
-            strengths.add("简历中已经出现目标岗位名称或相近表述");
+        if (job.getTitle() != null && resumeText.contains(job.getTitle().toLowerCase(Locale.ROOT))) {
+            strengths.add("简历里已经出现目标岗位或相近表述");
         }
-        if (resumeText.contains(job.getCompany().toLowerCase(Locale.ROOT))) {
-            strengths.add("简历中有相关企业或行业经历");
+        if (job.getCompany() != null && resumeText.contains(job.getCompany().toLowerCase(Locale.ROOT))) {
+            strengths.add("简历里有相关企业或行业经历");
         }
+
         if (job.getEducationRequirement() != null && !job.getEducationRequirement().isBlank()) {
             if (resumeText.contains(job.getEducationRequirement().toLowerCase(Locale.ROOT))) {
-                strengths.add("教育背景满足岗位要求");
+                strengths.add("教育背景匹配岗位要求");
             } else {
-                gaps.add("教育要求与简历未明显对齐");
-                suggestions.add("补充教育经历和相关课程，强化学历匹配");
+                gaps.add("教育背景与岗位要求未明显对齐");
+                suggestions.add("补充教育经历和相关课程");
             }
         }
 
@@ -107,16 +153,71 @@ public class ResumeAiService {
             }
         }
 
-        if (score >= 80) {
-            suggestions.add("可以优先投递，继续强化项目成果和量化表达");
-        } else if (score >= 60) {
-            suggestions.add("适合投递，但建议先补齐关键技能和项目描述");
-        } else {
-            suggestions.add("当前匹配偏弱，建议先按岗位关键词重写简历");
-        }
+        suggestions.add(score >= 80 ? "可以优先投递，继续强化项目结果和量化指标"
+                : score >= 60 ? "适合投递，但建议先补齐关键词和项目描述"
+                : "当前匹配偏弱，建议按岗位关键词重写简历");
 
-        String summary = "当前匹配度约 " + score + " 分，" + (score >= 80 ? "可以直接投递。" : score >= 60 ? "还有优化空间。" : "建议先做针对性修改。");
-        return new ResumeMatchResponse(score, summary, strengths.stream().distinct().toList(), gaps.stream().distinct().toList(), suggestions.stream().distinct().toList());
+        String summary = "当前匹配度约 " + score + " 分，" + (score >= 80 ? "可以直接投递。" : score >= 60 ? "还有优化空间。" : "建议针对性修改。");
+        return new ResumeMatchResponse(score, summary,
+                strengths.stream().distinct().toList(),
+                gaps.stream().distinct().toList(),
+                suggestions.stream().distinct().toList());
+    }
+
+    private void ensureApiKey() {
+        if (!StringUtils.hasText(apiKey)) {
+            throw new IllegalStateException("百炼 API Key 未配置，请设置 DASHSCOPE_API_KEY 或 app.bailian.api-key");
+        }
+    }
+
+    private String defaultResumeSystemPrompt() {
+        return "你是专业校园求职简历顾问。请用中文输出，给出具体可执行的修改建议，避免空泛评价。";
+    }
+
+    private String defaultChatSystemPrompt() {
+        return "你是一个求职助手。请用中文输出，内容要具体、可执行，避免空话。";
+    }
+
+    private AiResumeReviewResponse callBailianPrompt(String systemPrompt, String userPrompt) {
+        try {
+            Map<String, Object> body = Map.of(
+                    "model", model,
+                    "messages", List.of(
+                            Map.of("role", "system", "content", systemPrompt),
+                            Map.of("role", "user", "content", userPrompt)
+                    ),
+                    "temperature", 0.4,
+                    "max_tokens", 1800
+            );
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(endpoint))
+                    .timeout(Duration.ofSeconds(60))
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IllegalStateException("百炼调用失败: " + response.body());
+            }
+
+            JsonNode root = objectMapper.readTree(response.body());
+            JsonNode usage = root.path("usage");
+            return new AiResumeReviewResponse(
+                    root.path("choices").path(0).path("message").path("content").asText(""),
+                    root.path("model").asText(model),
+                    usage.path("prompt_tokens").isMissingNode() ? null : usage.path("prompt_tokens").asInt(),
+                    usage.path("completion_tokens").isMissingNode() ? null : usage.path("completion_tokens").asInt(),
+                    usage.path("total_tokens").isMissingNode() ? null : usage.path("total_tokens").asInt()
+            );
+        } catch (IOException exception) {
+            throw new IllegalStateException("百炼响应解析失败", exception);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("百炼调用被中断", exception);
+        }
     }
 
     private void validateFile(MultipartFile file) {
@@ -139,68 +240,6 @@ public class ResumeAiService {
             return text.length() > MAX_RESUME_CHARS ? text.substring(0, MAX_RESUME_CHARS) : text;
         } catch (IOException | SAXException | TikaException exception) {
             throw new IllegalArgumentException("简历文件解析失败，请换成可复制文本的 PDF、DOCX 或 TXT 文件");
-        }
-    }
-
-    private AiResumeReviewResponse callBailian(String resumeText, String userPrompt) {
-        try {
-            Map<String, Object> body = Map.of(
-                    "model", model,
-                    "messages", List.of(
-                            Map.of(
-                                    "role", "system",
-                                    "content", "你是专业校园求职简历顾问。请用中文输出，给出具体可执行的修改建议，避免空泛评价。"
-                            ),
-                            Map.of(
-                                    "role", "user",
-                                    "content", """
-                                            用户修改要求：
-                                            %s
-
-                                            简历文本：
-                                            %s
-
-                                            请按以下结构输出：
-                                            1. 总体评分与一句话结论
-                                            2. 需要优先修改的 5 个问题
-                                            3. 可直接替换到简历中的改写示例
-                                            4. 针对目标岗位的关键词建议
-                                            5. 下一步行动清单
-                                            """.formatted(userPrompt, resumeText)
-                            )
-                    ),
-                    "temperature", 0.4,
-                    "max_tokens", 1800
-            );
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(endpoint))
-                    .timeout(Duration.ofSeconds(60))
-                    .header("Authorization", "Bearer " + apiKey)
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
-                    .build();
-
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new IllegalStateException("百炼调用失败：" + response.body());
-            }
-
-            JsonNode root = objectMapper.readTree(response.body());
-            String content = root.path("choices").path(0).path("message").path("content").asText("");
-            JsonNode usage = root.path("usage");
-            return new AiResumeReviewResponse(
-                    content,
-                    root.path("model").asText(model),
-                    usage.path("prompt_tokens").isMissingNode() ? null : usage.path("prompt_tokens").asInt(),
-                    usage.path("completion_tokens").isMissingNode() ? null : usage.path("completion_tokens").asInt(),
-                    usage.path("total_tokens").isMissingNode() ? null : usage.path("total_tokens").asInt()
-            );
-        } catch (IOException exception) {
-            throw new IllegalStateException("百炼响应解析失败");
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("百炼调用被中断");
         }
     }
 
@@ -239,7 +278,9 @@ public class ResumeAiService {
     }
 
     private void addKeywords(Set<String> keywords, String text) {
-        if (!StringUtils.hasText(text)) return;
+        if (!StringUtils.hasText(text)) {
+            return;
+        }
         for (String item : text.toLowerCase(Locale.ROOT).split("[、，,；;\\s/]+")) {
             String trimmed = item.trim();
             if (trimmed.length() >= 2 && trimmed.length() <= 12) {
