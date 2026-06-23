@@ -1,240 +1,311 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../api'
 import { mockJobs } from '../data/mockJobs'
 
 const router = useRouter()
-const API_ORIGIN = 'http://localhost:8087'
-
-const jobs = ref([])
+const overview = ref(null)
 const loading = ref(true)
-const notice = ref('')
-const activeCategory = ref('全部')
-const homeBackground = ref(`${API_ORIGIN}/backgrounds/home.svg`)
-const categories = ['全部', '实习', '校招', '前端', '后端', '产品', '运营', '设计']
+const keyword = ref('')
 
-const categoryBlocks = [
-  ['互联网/AI', 'Java', 'C/C++', 'PHP'],
-  ['电子/电气/通信', '电子工程师', '硬件工程师'],
-  ['产品', '产品经理', '产品专员/助理', '产品总监'],
-  ['客服/运营', '客服专员', '客服主管', '客服经理'],
-  ['销售', '销售专员', '电话销售', '网络销售'],
-  ['人力/行政/法务', '人力资源专员/助理'],
-  ['财务/审计/税务', '会计', '总账会计', '成本会计']
+const categories = [
+  {
+    title: '技术开发', icon: 'code',
+    subs: ['Java 开发', 'Python 开发', '前端开发', '后端开发', '算法工程师', '全栈开发', '移动开发', 'DevOps']
+  },
+  {
+    title: '产品设计', icon: 'design',
+    subs: ['产品经理', 'UI 设计师', '交互设计', '视觉设计', '用户研究', '数据分析']
+  },
+  {
+    title: '运营市场', icon: 'market',
+    subs: ['新媒体运营', '内容运营', '增长运营', '品牌策划', '市场推广', '社群运营']
+  },
+  {
+    title: '职能支持', icon: 'office',
+    subs: ['人力资源', '财务会计', '行政文秘', '法务合规', '采购管理']
+  },
+  {
+    title: '教育培训', icon: 'edu',
+    subs: ['讲师', '教研', '课程设计', '教育产品', '培训管理']
+  },
+  {
+    title: '实习岗位', icon: 'intern',
+    subs: ['暑期实习', '日常实习', '远程实习', '项目实习', '管培实习']
+  }
 ]
 
-const filteredJobs = computed(() => {
-  if (activeCategory.value === '全部') return jobs.value
-  return jobs.value.filter((job) => {
-    const text = `${job.jobType || ''} ${job.title || ''} ${job.description || ''} ${job.company || ''}`.toLowerCase()
-    return text.includes(activeCategory.value.toLowerCase())
-  })
-})
+const activeCat = ref(0)
 
-const topJobs = computed(() => filteredJobs.value.slice(0, 4))
-const quickJobs = computed(() => jobs.value.slice(0, 8))
+const activeSubs = computed(() => categories[activeCat.value]?.subs || [])
 
-function withApiOrigin(url) {
-  if (!url) return homeBackground.value
-  return url.startsWith('http') ? url : `${API_ORIGIN}${url}`
+const features = [
+  { title: '海量岗位', desc: '覆盖全国多城市的实习与校招职位', icon: 'grid' },
+  { title: 'AI 辅助', desc: '简历优化、面试模拟、岗位匹配一步到位', icon: 'spark' },
+  { title: '精准匹配', desc: '按专业、技能和城市智能推荐岗位', icon: 'free' },
+  { title: '实时更新', desc: '岗位信息每日更新，不错过任何机会', icon: 'refresh' }
+]
+
+const platformStats = reactive([
+  { target: 2400, value: 0, suffix: '+', label: '已服务学生' },
+  { target: 580, value: 0, suffix: '+', label: '在招岗位' },
+  { target: 120, value: 0, suffix: '+', label: '合作企业' },
+  { target: 36, value: 0, suffix: '', label: '覆盖城市' }
+])
+
+function animateCountUp() {
+  const duration = 1200
+  const startTime = performance.now()
+  function step(now) {
+    const elapsed = now - startTime
+    const progress = Math.min(elapsed / duration, 1)
+    const ease = 1 - Math.pow(1 - progress, 3)
+    platformStats.forEach(s => {
+      s.value = Math.round(s.target * ease)
+    })
+    if (progress < 1) requestAnimationFrame(step)
+  }
+  requestAnimationFrame(step)
+}
+
+const jobs = computed(() => overview.value?.featuredJobs?.length ? overview.value.featuredJobs : mockJobs)
+const hotJobs = computed(() => jobs.value.slice(0, 5))
+
+const avatarColors = ['av-blue', 'av-green', 'av-purple', 'av-orange', 'av-teal']
+
+function companyInitial(name) {
+  return name ? name.charAt(0) : '·'
+}
+
+function avatarColor(index) {
+  return avatarColors[index % avatarColors.length]
 }
 
 function salaryText(job) {
-  if (!job.salaryMin && !job.salaryMax) return '薪资面议'
+  if (!job.salaryMin && !job.salaryMax) return '面议'
   const unit = job.jobType === '实习' ? '/天' : '/月'
   return `${job.salaryMin}-${job.salaryMax}${unit}`
 }
 
-function goJobs() {
-  router.push({ name: 'jobs' })
+function goJobs(query = {}) {
+  router.push({ name: 'jobs', query })
 }
 
-function applyCategory(name) {
-  activeCategory.value = name
-}
-
-async function loadJobs() {
+async function loadHome() {
   loading.value = true
-  notice.value = ''
   try {
-    const data = await api('/jobs?status=OPEN')
-    jobs.value = Array.isArray(data) && data.length ? data : mockJobs
+    overview.value = await api('/home', { timeout: 5000 })
   } catch {
-    jobs.value = mockJobs
-    notice.value = '当前展示的是示例岗位，后端启动后会自动切换为真实数据。'
+    overview.value = null
   } finally {
     loading.value = false
   }
 }
 
-async function loadHomeBackground() {
-  try {
-    const data = await api('/backgrounds', { timeout: 5000 })
-    const home = data.find((item) => item.pageKey === 'home')
-    if (home?.imageUrl) homeBackground.value = withApiOrigin(home.imageUrl)
-  } catch {
-    homeBackground.value = `${API_ORIGIN}/backgrounds/home.svg`
-  }
-}
-
 onMounted(() => {
-  loadHomeBackground()
-  loadJobs()
+  loadHome()
+  setTimeout(animateCountUp, 400)
 })
 </script>
 
 <template>
-  <div class="home-page">
+  <div class="home-v2">
+    <!-- Hero -->
     <section class="home-hero">
-      <form class="home-search glass-card" @submit.prevent="goJobs">
-        <label class="home-search-type">
-          <span>职位类型</span>
-          <select v-model="activeCategory">
-            <option v-for="item in categories" :key="item" :value="item">{{ item }}</option>
-          </select>
-        </label>
-        <label class="home-search-keyword">
-          <span>搜索职位、公司</span>
-          <input type="text" placeholder="输入关键词" />
-        </label>
-        <label class="home-search-map">
-          <span>地图</span>
-          <button type="button" class="map-pill" @click="goJobs">查看职位地图</button>
-        </label>
-        <button type="submit" class="search-btn">搜索</button>
-      </form>
-
-      <div class="home-hot-list">
-        <span class="home-hot-label">热门职位：</span>
-        <button
-          v-for="item in categories.slice(1, 8)"
-          :key="item"
-          type="button"
-          class="hot-chip"
-          @click="applyCategory(item)"
-        >
-          {{ item }}
-        </button>
-      </div>
-    </section>
-
-    <section class="home-stage">
-      <aside class="home-category-panel glass-card">
-        <div class="home-category-scroll">
-          <article v-for="item in categoryBlocks" :key="item[0]" class="home-category-row">
-            <strong>{{ item[0] }}</strong>
-            <div>
-              <span v-for="tag in item.slice(1)" :key="tag">{{ tag }}</span>
+      <div class="home-hero-inner">
+        <div class="home-hero-left">
+          <form class="home-search-form" @submit.prevent="goJobs({ keyword })">
+            <div class="home-search-wrap">
+              <svg class="home-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input v-model="keyword" type="text" placeholder="搜索职位、公司、关键词" class="home-search-input" />
+              <button type="submit" class="home-search-btn">搜索</button>
             </div>
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-              <path d="M3 1.5L6.5 5L3 8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </article>
+          </form>
+
+<div class="home-quick-tags">
+            <span class="home-quick-label">热门搜索</span>
+            <button v-for="tag in ['Java', '前端', 'Python', '产品', '杭州', '上海', '实习']" :key="tag" type="button" class="home-quick-tag" @click="goJobs({ keyword: tag })">{{ tag }}</button>
+          </div>
         </div>
-        <div class="home-category-footer">
-          <span>1 / 4</span>
+
+        <div class="home-hero-right">
+          <div class="home-hero-visual">
+            <div class="visual-card vc-1">
+              <div class="vc-dot" style="background:#4a90e2"></div>
+              <div class="vc-lines">
+                <span></span><span></span><span style="width:60%"></span>
+              </div>
+            </div>
+            <div class="visual-card vc-2">
+              <div class="vc-dot" style="background:#6b8cce"></div>
+              <div class="vc-lines">
+                <span></span><span style="width:70%"></span><span></span>
+              </div>
+            </div>
+            <div class="visual-card vc-3">
+              <div class="vc-dot" style="background:#5a9fd4"></div>
+              <div class="vc-lines">
+                <span style="width:50%"></span><span></span><span style="width:80%"></span>
+              </div>
+            </div>
+            <div class="visual-float visual-float-1">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            </div>
+            <div class="visual-float visual-float-2">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <div class="visual-float visual-float-3">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="home-features">
+      <div class="home-features-inner">
+        <div v-for="f in features" :key="f.title" class="home-feature-item">
+          <div class="home-feature-icon">
+            <svg v-if="f.icon === 'grid'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <svg v-else-if="f.icon === 'spark'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <svg v-else-if="f.icon === 'free'" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          </div>
           <div>
-            <button type="button">‹</button>
-            <button type="button">›</button>
+            <strong>{{ f.title }}</strong>
+            <span>{{ f.desc }}</span>
           </div>
         </div>
-      </aside>
-
-      <section class="home-hero-board glass-card" :style="{ '--hero-art': `url(${homeBackground})` }">
-        <div class="home-hero-grid">
-          <article class="hero-feature hero-feature-lg">
-            <span class="hero-badge">直聘简历</span>
-            <h1>写好简历，找好工作</h1>
-            <p>密集展示岗位、公司、薪资、城市和方向，先筛选再投递。</p>
-          </article>
-          <article class="hero-feature hero-feature-sm">
-            <h2>前端岗位热</h2>
-            <p>Web 前端工程师精选</p>
-          </article>
-          <article class="hero-feature hero-feature-wide">
-            <h2>算法方向强需求</h2>
-            <p>算法工程师岗位精选</p>
-          </article>
-          <article class="hero-feature hero-feature-sm hero-feature-bottom">
-            <h2>高薪 Java 岗</h2>
-            <p>Java 工程师岗位精选</p>
-          </article>
-        </div>
-      </section>
-    </section>
-
-    <section class="home-jobs-section glass-card">
-      <div class="section-heading compact">
-        <span>Featured positions</span>
-        <h2>热门职位</h2>
-        <p>把岗位独立出来，首屏先看方向，再看具体机会，层次更清楚。</p>
-      </div>
-
-      <div v-if="loading" class="job-list home-job-list">
-        <article v-for="item in 6" :key="item" class="job-item loading-card home-job-card">
-          <div></div>
-          <strong></strong>
-          <p></p>
-        </article>
-      </div>
-
-      <div v-else class="home-job-grid">
-        <article v-for="job in topJobs" :key="job.id" class="home-job-card">
-          <div class="job-main">
-            <span class="job-type-tag">{{ job.jobType || '校招' }}</span>
-            <h3>{{ job.title }}</h3>
-            <p class="job-meta">{{ job.company }} · {{ job.city }}</p>
-            <small class="job-desc">{{ job.description }}</small>
-          </div>
-          <div class="job-side">
-            <strong class="salary">{{ salaryText(job) }}</strong>
-            <span class="edu">{{ job.educationRequirement }}</span>
-          </div>
-        </article>
-      </div>
-
-      <p v-if="notice" class="notice">{{ notice }}</p>
-
-      <div class="view-all">
-        <button class="view-all-btn" type="button" @click="goJobs">查看全部职位</button>
       </div>
     </section>
 
-    <section class="home-quick-grid">
-      <article class="home-quick-panel glass-card">
-        <div class="section-heading compact">
-          <span>Quick picks</span>
-          <h2>快速浏览</h2>
+    <!-- Platform Stats -->
+    <section class="home-platform">
+      <div class="home-platform-inner">
+        <div v-for="s in platformStats" :key="s.label" class="home-platform-item">
+          <strong>{{ s.value.toLocaleString() }}{{ s.suffix }}</strong>
+          <span>{{ s.label }}</span>
         </div>
-        <div class="home-quick-list">
-          <button v-for="job in quickJobs" :key="job.id" type="button" @click="goJobs">
-            <strong>{{ job.title }}</strong>
-            <span>{{ job.company }} · {{ job.city }}</span>
+      </div>
+    </section>
+
+    <!-- Categories -->
+    <section class="home-section">
+      <div class="home-section-inner">
+        <div class="home-section-header">
+          <div>
+            <h2>岗位分类</h2>
+            <p>选择方向，探索更多岗位</p>
+          </div>
+          <button type="button" class="home-link-btn" @click="goJobs">查看全部职位</button>
+        </div>
+
+        <div class="home-cat-tabs">
+          <button
+            v-for="(cat, i) in categories"
+            :key="cat.title"
+            type="button"
+            class="home-cat-tab"
+            :class="{ active: activeCat === i }"
+            @click="activeCat = i"
+          >
+            <svg v-if="cat.icon === 'code'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            <svg v-else-if="cat.icon === 'design'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+            <svg v-else-if="cat.icon === 'market'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/></svg>
+            <svg v-else-if="cat.icon === 'office'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            <svg v-else-if="cat.icon === 'edu'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+            <span>{{ cat.title }}</span>
           </button>
         </div>
-      </article>
 
-      <article class="home-quick-panel glass-card">
-        <div class="section-heading compact">
-          <span>Platform service</span>
-          <h2>平台功能</h2>
+        <div class="home-cat-subs">
+          <button
+            v-for="(sub, i) in activeSubs"
+            :key="sub"
+            type="button"
+            class="home-cat-sub"
+            :style="{ animationDelay: (i * 0.04) + 's' }"
+            @click="goJobs({ keyword: sub })"
+          >
+            {{ sub }}
+          </button>
         </div>
-        <div class="service-grid home-service-grid">
-          <article>
-            <strong>岗位发布</strong>
-            <p>企业维护岗位、城市、薪资和任职要求。</p>
-          </article>
-          <article>
-            <strong>学生投递</strong>
-            <p>查看详情后一键投递，记录清晰可追踪。</p>
-          </article>
-          <article>
-            <strong>状态审核</strong>
-            <p>投递状态支持待审核、已查看、通过和拒绝。</p>
-          </article>
-        </div>
-      </article>
+      </div>
     </section>
-  </div>
+
+    <!-- Hot Jobs -->
+    <section class="home-section">
+      <div class="home-section-inner">
+        <div class="home-section-header">
+          <div>
+            <h2>热门岗位</h2>
+            <p>近期受欢迎的实习与校招机会</p>
+          </div>
+          <button type="button" class="home-link-btn" @click="goJobs">查看全部</button>
+        </div>
+        <div class="hot-jobs-list">
+          <div
+            v-for="(job, idx) in hotJobs"
+            :key="job.id"
+            class="hot-job-row"
+            @click="goJobs({ id: job.id })"
+          >
+            <div class="hjr-avatar" :class="avatarColor(idx)">{{ companyInitial(job.company) }}</div>
+            <div class="hjr-left">
+              <h3 class="hjr-title">{{ job.title }}</h3>
+              <div class="hjr-info">
+                <span class="hjr-company">{{ job.company }}</span>
+                <span class="hjr-dot">·</span>
+                <span>{{ job.city }}</span>
+                <span class="hjr-dot">·</span>
+                <span>{{ job.educationRequirement }}</span>
+              </div>
+            </div>
+            <div class="hjr-right">
+              <span class="hjr-type" :class="job.jobType === '实习' ? 'type-intern' : 'type-campus'">{{ job.jobType }}</span>
+              <span class="hjr-salary">{{ salaryText(job) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <span class="footer-logo">职策</span>
+          <span class="footer-desc">面向大学生的校园求职平台</span>
+        </div>
+        <div class="footer-links">
+          <div class="footer-col">
+            <strong>求职</strong>
+            <a href="/jobs">浏览职位</a>
+            <a href="/resume">我的简历</a>
+            <a href="/applications">投递记录</a>
+          </div>
+          <div class="footer-col">
+            <strong>AI 工具</strong>
+            <a href="/tools/resume-review">AI 改简历</a>
+            <a href="/tools/consult">求职咨询</a>
+            <a href="/tools/job-match">岗位匹配</a>
+            <a href="/tools/interview-practice">面试模拟</a>
+          </div>
+          <div class="footer-col">
+            <strong>更多</strong>
+            <a href="/workbench">工作台</a>
+            <a href="/learn">学习资源</a>
+            <a href="/notifications">通知中心</a>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>&copy; 2026 职策 Campus Career. All rights reserved.</span>
+      </div>
+    </footer>
+
+</div>
 </template>

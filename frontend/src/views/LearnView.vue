@@ -285,67 +285,90 @@ function selectCategory(category) {
   const first = filteredDocs.value[0]
   if (first) activeId.value = first.id
 }
+
+const categoryIcons = {
+  '后端开发': 'M16 18l6-6-6-6',
+  '前端开发': 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
+  '数据库': 'M12 2C6.48 2 2 4.02 2 6.5S6.48 11 12 11s10-2.02 10-4.5S17.52 2 12 2zM2 12.5c0 2.48 4.48 4.5 10 4.5s10-2.02 10-4.5',
+  '求职能力': 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z'
+}
 </script>
 
 <template>
-  <div class="learning-page">
-    <section class="learning-hero">
-      <div>
-        <span class="page-tag">Learning center</span>
-        <h1>学习中心</h1>
-        <p>把后端、前端、数据库和求职能力整理成可直接阅读的文档，边学边完善项目和简历。</p>
-      </div>
-      <div class="learning-stats">
-        <strong>{{ docs.length }}</strong>
-        <span>篇学习文档</span>
+  <div class="learn-v2">
+    <!-- Hero -->
+    <section class="learn-hero">
+      <div class="learn-hero-inner">
+        <div class="learn-hero-left">
+          <h1>学习中心</h1>
+          <p>后端、前端、数据库和求职能力，边学边完善简历</p>
+        </div>
+        <div class="learn-hero-stat">
+          <strong>{{ docs.length }}</strong>
+          <span>篇文档</span>
+        </div>
       </div>
     </section>
 
-    <section class="learning-shell">
-      <aside class="learning-sidebar">
-        <label class="learning-search">
-          <span>搜索文档</span>
-          <input v-model="keyword" placeholder="Java / Vue / 简历 / 面试" />
-        </label>
+    <!-- Content -->
+    <section class="learn-content">
+      <div class="learn-shell">
+        <!-- Sidebar -->
+        <aside class="learn-sidebar">
+          <div class="ls-search">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input v-model="keyword" placeholder="搜索文档" />
+          </div>
 
-        <div class="learning-tabs" aria-label="学习分类">
-          <button
-            v-for="category in categories"
-            :key="category"
-            type="button"
-            :class="{ active: activeCategory === category }"
-            @click="selectCategory(category)"
-          >
-            {{ category }}
-          </button>
-        </div>
+          <div class="ls-tabs">
+            <button
+              v-for="cat in categories"
+              :key="cat"
+              type="button"
+              class="ls-tab"
+              :class="{ active: activeCategory === cat }"
+              @click="selectCategory(cat)"
+            >
+              {{ cat }}
+            </button>
+          </div>
 
-        <div class="learning-doc-list">
-          <button
-            v-for="doc in filteredDocs"
-            :key="doc.id"
-            type="button"
-            :class="{ active: activeDoc.id === doc.id }"
-            @click="activeId = doc.id"
-          >
-            <strong>{{ doc.title }}</strong>
-            <span>{{ doc.desc }}</span>
-            <small>{{ doc.category }} · {{ doc.minutes }} 分钟</small>
-          </button>
-        </div>
-      </aside>
+          <div class="ls-docs">
+            <button
+              v-for="doc in filteredDocs"
+              :key="doc.id"
+              type="button"
+              class="ls-doc"
+              :class="{ active: activeDoc.id === doc.id }"
+              @click="activeId = doc.id"
+            >
+              <div class="lsd-top">
+                <span class="lsd-cat">{{ doc.category }}</span>
+                <span class="lsd-time">{{ doc.minutes }} min</span>
+              </div>
+              <h3>{{ doc.title }}</h3>
+              <p>{{ doc.desc }}</p>
+            </button>
+          </div>
+        </aside>
 
-      <article class="learning-reader">
-        <div class="learning-reader-head">
-          <div>
-            <span>{{ activeDoc.category }} · {{ activeDoc.level }}</span>
+        <!-- Reader -->
+        <main class="learn-reader">
+          <div class="lr-head">
+            <div class="lr-meta">
+              <span class="lr-cat">{{ activeDoc.category }}</span>
+              <span class="lr-level">{{ activeDoc.level }}</span>
+            </div>
             <h2>{{ activeDoc.title }}</h2>
             <p>{{ activeDoc.desc }}</p>
+            <div class="lr-info">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span>约 {{ activeDoc.minutes }} 分钟阅读</span>
+            </div>
           </div>
-          <strong>{{ activeDoc.minutes }} min</strong>
-        </div>
-        <div class="markdown-result learning-markdown" v-html="renderMarkdown(activeDoc.content)"></div>
-      </article>
+          <div class="lr-body markdown-result" v-html="renderMarkdown(activeDoc.content)"></div>
+        </main>
+      </div>
     </section>
   </div>
 </template>

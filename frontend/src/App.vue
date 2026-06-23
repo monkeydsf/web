@@ -64,7 +64,6 @@ watch(session, (value) => {
   <div class="page">
     <header v-if="!route.path.startsWith('/admin')" class="top-nav">
       <router-link class="logo" to="/" aria-label="职策首页">
-        <span class="logo-symbol">职</span>
         <span>职策</span>
       </router-link>
 

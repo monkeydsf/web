@@ -16,11 +16,13 @@ public interface JobRepository extends JpaRepository<Job, Long> {
             where (:keyword is null or lower(j.title) like lower(concat('%', :keyword, '%'))
                 or lower(j.company) like lower(concat('%', :keyword, '%')))
               and (:city is null or j.city = :city)
+              and (:jobType is null or j.jobType = :jobType)
               and (:status is null or j.status = :status)
             order by j.createdAt desc
             """)
     List<Job> search(@Param("keyword") String keyword,
                      @Param("city") String city,
+                     @Param("jobType") String jobType,
                      @Param("status") JobStatus status);
 
     long countByStatus(JobStatus status);

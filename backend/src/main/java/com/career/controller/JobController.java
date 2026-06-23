@@ -45,10 +45,12 @@ public class JobController {
     @GetMapping
     public List<JobDto> list(@RequestParam(required = false) String keyword,
                              @RequestParam(required = false) String city,
+                             @RequestParam(required = false) String jobType,
                              @RequestParam(required = false) JobStatus status) {
         String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : null;
         String normalizedCity = StringUtils.hasText(city) ? city.trim() : null;
-        return jobRepository.search(normalizedKeyword, normalizedCity, status).stream()
+        String normalizedJobType = StringUtils.hasText(jobType) ? jobType.trim() : null;
+        return jobRepository.search(normalizedKeyword, normalizedCity, normalizedJobType, status).stream()
                 .map(JobDto::from)
                 .toList();
     }

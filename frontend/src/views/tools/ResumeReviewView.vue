@@ -20,110 +20,92 @@ const renderedResult = computed(() => renderMarkdown(result.value, '上传简历
 
 function handleFileChange(event) {
   const selected = event.target.files?.[0]
-  error.value = ''
-  result.value = ''
-  if (!selected) {
-    file.value = null
-    return
-  }
+  error.value = ''; result.value = ''
+  if (!selected) { file.value = null; return }
   const allowed = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
   const allowedExtension = /\.(pdf|doc|docx)$/i.test(selected.name)
   if (!allowed.includes(selected.type) && !allowedExtension) {
     error.value = '请上传 PDF、DOC 或 DOCX 格式的简历。'
-    event.target.value = ''
-    file.value = null
-    return
+    event.target.value = ''; file.value = null; return
   }
   file.value = selected
 }
 
-function clearFile() {
-  file.value = null
-  result.value = ''
-  error.value = ''
-}
+function clearFile() { file.value = null; result.value = ''; error.value = '' }
 
 async function sendToAi() {
-  if (!file.value) {
-    error.value = '请先上传简历文件。'
-    return
-  }
-  sending.value = true
-  error.value = ''
-  result.value = ''
+  if (!file.value) { error.value = '请先上传简历文件。'; return }
+  sending.value = true; error.value = ''; result.value = ''
   const formData = new FormData()
   formData.append('file', file.value)
   formData.append('prompt', prompt.value)
   try {
     const data = await api('/ai/resume-review', {
-      method: 'POST',
-      body: formData,
-      timeout: 70000
+      method: 'POST', body: formData, timeout: 70000
     })
     result.value = data.content || 'AI 没有返回有效内容，请稍后重试。'
   } catch (err) {
     error.value = err.message || 'AI 调用失败，请检查后端 API Key 配置。'
-  } finally {
-    sending.value = false
-  }
+  } finally { sending.value = false }
 }
 </script>
 
 <template>
-  <div class="tool-workspace">
-    <section class="tool-workspace-head">
-      <div>
-        <span class="page-tag">AI resume review</span>
-        <h1>改简历</h1>
-        <p>上传简历文件，把文件和修改要求发送给 AI，获取结构、表达和岗位匹配建议。</p>
+  <div class="tool-v2">
+    <section class="tool-hero">
+      <div class="tool-hero-inner">
+        <div class="tool-hero-left">
+          <h1>AI 改简历</h1>
+          <p>上传简历，获取结构、表达和岗位匹配建议</p>
+        </div>
+        <button type="button" class="tool-back" @click="router.push('/workbench')">返回工作台</button>
       </div>
-      <button class="admin-ghost" type="button" @click="router.push('/workbench')">返回工作台</button>
     </section>
 
-    <section class="resume-review-grid">
-      <aside class="upload-panel">
-        <div class="tool-panel-head">
-          <h2>上传文件</h2>
-          <p>支持 PDF、DOC、DOCX，建议上传最新版本。</p>
-        </div>
-
-        <label class="resume-dropzone">
-          <input type="file" accept=".pdf,.doc,.docx" @change="handleFileChange" />
-          <span>选择简历文件</span>
-          <small>文件会发送到后端，再由后端调用百炼平台。</small>
-        </label>
-
-        <article v-if="file" class="uploaded-file-card">
-          <div>
-            <strong>{{ file.name }}</strong>
-            <p>{{ fileSize }}</p>
+    <section class="tool-content">
+      <div class="tool-grid">
+        <aside class="tool-input">
+          <div class="ti-header">
+            <h3>上传文件</h3>
+            <span>支持 PDF、DOC、DOCX</span>
           </div>
-          <button class="admin-ghost" type="button" @click="clearFile">移除</button>
-        </article>
 
-        <p v-if="error" class="notice">{{ error }}</p>
-      </aside>
+          <label class="ti-dropzone">
+            <input type="file" accept=".pdf,.doc,.docx" @change="handleFileChange" />
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <strong>选择简历文件</strong>
+            <span>点击或拖拽上传</span>
+          </label>
 
-      <section class="ai-send-panel">
-        <div class="tool-panel-head">
-          <h2>发送给 AI</h2>
-          <p>填写你的修改目标，AI 会按目标给出简历优化建议。</p>
-        </div>
+          <div v-if="file" class="ti-file">
+            <div class="tif-info">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <div>
+                <strong>{{ file.name }}</strong>
+                <span>{{ fileSize }}</span>
+              </div>
+            </div>
+            <button type="button" class="ti-file-remove" @click="clearFile">&times;</button>
+          </div>
 
-        <label class="ai-prompt-box">
-          <span>修改要求</span>
-          <textarea v-model="prompt"></textarea>
-        </label>
+          <div class="ti-field">
+            <label>修改要求</label>
+            <textarea v-model="prompt" rows="3"></textarea>
+          </div>
 
-        <button class="login-submit" :disabled="sending" @click="sendToAi">
-          {{ sending ? '发送中...' : '发送文件给 AI' }}
-        </button>
+          <button class="ti-btn" :disabled="sending" @click="sendToAi">
+            {{ sending ? '发送中...' : '发送给 AI' }}
+          </button>
+          <p v-if="error" class="tool-error">{{ error }}</p>
+        </aside>
 
-        <div class="ai-result-box">
-          <strong>AI 分析结果</strong>
-          <div class="markdown-result" v-html="renderedResult"></div>
-        </div>
-      </section>
+        <main class="tool-result">
+          <div class="tr-header">
+            <h3>AI 分析结果</h3>
+          </div>
+          <div class="tr-body markdown-result" v-html="renderedResult"></div>
+        </main>
+      </div>
     </section>
   </div>
 </template>

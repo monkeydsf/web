@@ -25,69 +25,59 @@ const renderedResult = computed(() => renderMarkdown(result.value, '填写左侧
 
 watch(
   () => route.fullPath,
-  () => {
-    input.value = ''
-    result.value = ''
-    error.value = ''
-  }
+  () => { input.value = ''; result.value = ''; error.value = '' }
 )
 
 async function generate() {
-  if (!input.value.trim()) {
-    error.value = '请先填写内容。'
-    return
-  }
-  loading.value = true
-  error.value = ''
-  result.value = ''
+  if (!input.value.trim()) { error.value = '请先填写内容。'; return }
+  loading.value = true; error.value = ''; result.value = ''
   try {
     const data = await api('/ai/prompt-test', {
       method: 'POST',
-      body: JSON.stringify({
-        prompt: `${tool.value.template}\n\n${input.value.trim()}`
-      }),
+      body: JSON.stringify({ prompt: `${tool.value.template}\n\n${input.value.trim()}` }),
       timeout: 70000
     })
     result.value = data.content || 'AI 没有返回有效内容，请稍后重试。'
   } catch (err) {
     error.value = err.message || '生成失败，请检查后端和百炼 API Key。'
-  } finally {
-    loading.value = false
-  }
+  } finally { loading.value = false }
 }
 </script>
 
 <template>
-  <div class="tool-workspace">
-    <section class="tool-workspace-head">
-      <div>
-        <span class="page-tag">{{ tool.tag }}</span>
-        <h1>{{ tool.title }}</h1>
-        <p>{{ tool.intro }}</p>
+  <div class="tool-v2">
+    <section class="tool-hero">
+      <div class="tool-hero-inner">
+        <div class="tool-hero-left">
+          <h1>{{ tool.title }}</h1>
+          <p>{{ tool.intro }}</p>
+        </div>
+        <button type="button" class="tool-back" @click="router.push('/workbench')">返回工作台</button>
       </div>
-      <button class="admin-ghost" type="button" @click="router.push('/workbench')">返回工作台</button>
     </section>
 
-    <section class="prompt-tool-grid">
-      <aside class="prompt-input-panel">
-        <div class="tool-panel-head">
-          <h2>{{ tool.inputLabel }}</h2>
-          <p>内容越具体，生成结果越贴近你的真实求职场景。</p>
-        </div>
-        <textarea v-model="input" :placeholder="tool.placeholder"></textarea>
-        <button class="login-submit" :disabled="loading" @click="generate">
-          {{ loading ? '生成中...' : tool.button }}
-        </button>
-        <p v-if="error" class="notice">{{ error }}</p>
-      </aside>
+    <section class="tool-content">
+      <div class="tool-grid">
+        <aside class="tool-input">
+          <div class="ti-header">
+            <h3>{{ tool.inputLabel }}</h3>
+            <span>内容越具体，生成越准确</span>
+          </div>
+          <textarea v-model="input" :placeholder="tool.placeholder"></textarea>
+          <button class="ti-btn" :disabled="loading" @click="generate">
+            {{ loading ? '生成中...' : tool.button }}
+          </button>
+          <p v-if="error" class="tool-error">{{ error }}</p>
+        </aside>
 
-      <section class="prompt-result-panel">
-        <div class="tool-panel-head">
-          <h2>生成结果</h2>
-          <p>可直接复制到简历、投递消息或求职计划里继续修改。</p>
-        </div>
-        <div class="markdown-result" v-html="renderedResult"></div>
-      </section>
+        <main class="tool-result">
+          <div class="tr-header">
+            <h3>生成结果</h3>
+            <span>可复制到简历或求职计划</span>
+          </div>
+          <div class="tr-body markdown-result" v-html="renderedResult"></div>
+        </main>
+      </div>
     </section>
   </div>
 </template>

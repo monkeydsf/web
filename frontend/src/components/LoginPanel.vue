@@ -22,9 +22,9 @@ const form = reactive({
 })
 
 const roleCards = [
-  { value: 'JOB_SEEKER', title: '求职者', desc: '浏览职位，投递简历，查看投递结果。' },
-  { value: 'COMPANY', title: '公司人员', desc: '发布岗位，管理投递，查看招聘数据。' },
-  { value: 'ADMIN', title: '管理员', desc: '进入后台管理路由，维护全站内容。' }
+  { value: 'JOB_SEEKER', title: '求职者', desc: '浏览职位，投递简历' },
+  { value: 'COMPANY', title: '企业用户', desc: '发布岗位，管理投递' },
+  { value: 'ADMIN', title: '管理员', desc: '管理后台内容' }
 ]
 
 const canRegister = computed(() => selectedRole.value !== 'ADMIN')
@@ -42,16 +42,9 @@ watch(
 function fillDemo(role) {
   selectedRole.value = role
   mode.value = 'login'
-  if (role === 'JOB_SEEKER') {
-    form.username = 'student'
-    form.password = 'student123'
-  } else if (role === 'COMPANY') {
-    form.username = 'company'
-    form.password = 'company123'
-  } else {
-    form.username = 'admin'
-    form.password = 'admin123'
-  }
+  if (role === 'JOB_SEEKER') { form.username = 'student'; form.password = 'student123' }
+  else if (role === 'COMPANY') { form.username = 'company'; form.password = 'company123' }
+  else { form.username = 'admin'; form.password = 'admin123' }
 }
 
 function roleMatches(userRole) {
@@ -102,74 +95,85 @@ async function submit() {
 </script>
 
 <template>
-  <div class="login-panel">
-    <div class="login-intro">
-      <span class="page-tag">Account</span>
-      <h1>登录职策</h1>
-      <p>求职者进入前台，企业人员和管理员进入后台。</p>
-      <div class="demo-list">
-        <button type="button" @click="fillDemo('JOB_SEEKER')">求职者演示</button>
-        <button type="button" @click="fillDemo('COMPANY')">公司人员演示</button>
-        <button type="button" @click="fillDemo('ADMIN')">管理员演示</button>
-      </div>
+  <div class="lpv2-panel">
+    <div class="lpv2-panel-header">
+      <h2>{{ mode === 'login' ? '登录账号' : '注册账号' }}</h2>
+      <p>{{ mode === 'login' ? '欢迎回来，请登录以继续' : '创建新账号，开始求职之旅' }}</p>
     </div>
 
-    <div class="login-card">
-      <div class="role-switch">
-        <button
-          v-for="role in roleCards"
-          :key="role.value"
-          type="button"
-          :class="{ active: selectedRole === role.value }"
-          @click="selectedRole = role.value"
-        >
-          <strong>{{ role.title }}</strong>
-          <span>{{ role.desc }}</span>
-        </button>
+    <!-- Role tabs -->
+    <div class="lpv2-roles">
+      <button
+        v-for="role in roleCards"
+        :key="role.value"
+        type="button"
+        class="lpv2-role-btn"
+        :class="{ active: selectedRole === role.value }"
+        @click="selectedRole = role.value"
+      >
+        <strong>{{ role.title }}</strong>
+        <span>{{ role.desc }}</span>
+      </button>
+    </div>
+
+    <!-- Auth mode -->
+    <div class="lpv2-mode">
+      <button type="button" :class="{ active: mode === 'login' }" @click="mode = 'login'">登录</button>
+      <button type="button" :disabled="!canRegister" :class="{ active: mode === 'register' }" @click="mode = 'register'">注册</button>
+    </div>
+    <p v-if="!canRegister" class="lpv2-tip">管理员账号由系统初始化，不开放注册。</p>
+
+    <!-- Form -->
+    <form class="lpv2-form" @submit.prevent="submit">
+      <div class="lpv2-field">
+        <label>用户名</label>
+        <input v-model="form.username" required placeholder="请输入用户名" />
+      </div>
+      <div class="lpv2-field">
+        <label>密码</label>
+        <input v-model="form.password" type="password" required minlength="6" placeholder="请输入密码" />
       </div>
 
-      <div class="auth-mode">
-        <button type="button" :class="{ active: mode === 'login' }" @click="mode = 'login'">登录</button>
-        <button type="button" :disabled="!canRegister" :class="{ active: mode === 'register' }" @click="mode = 'register'">注册</button>
+      <template v-if="mode === 'register'">
+        <div class="lpv2-field">
+          <label>{{ selectedRole === 'COMPANY' ? '联系人' : '姓名' }}</label>
+          <input v-model="form.fullName" required placeholder="请输入姓名" />
+        </div>
+        <div class="lpv2-field">
+          <label>{{ selectedRole === 'COMPANY' ? '公司名称' : '专业' }}</label>
+          <input v-model="form.major" placeholder="请输入专业" />
+        </div>
+        <div class="lpv2-row">
+          <div class="lpv2-field">
+            <label>邮箱</label>
+            <input v-model="form.email" type="email" placeholder="请输入邮箱" />
+          </div>
+          <div class="lpv2-field">
+            <label>手机号</label>
+            <input v-model="form.phone" placeholder="请输入手机号" />
+          </div>
+        </div>
+        <div v-if="selectedRole === 'JOB_SEEKER'" class="lpv2-field">
+          <label>毕业年份</label>
+          <input v-model="form.graduationYear" type="number" />
+        </div>
+      </template>
+
+      <button class="lpv2-submit" type="submit" :disabled="loading">
+        {{ loading ? '处理中...' : (mode === 'login' ? '登录' : '注册并登录') }}
+      </button>
+    </form>
+
+    <p v-if="message" class="lpv2-message">{{ message }}</p>
+
+    <!-- Demo accounts -->
+    <div class="lpv2-demo">
+      <span>快速体验</span>
+      <div class="lpv2-demo-btns">
+        <button type="button" @click="fillDemo('JOB_SEEKER')">求职者</button>
+        <button type="button" @click="fillDemo('COMPANY')">企业用户</button>
+        <button type="button" @click="fillDemo('ADMIN')">管理员</button>
       </div>
-      <p v-if="!canRegister" class="login-tip">管理员账号由系统初始化，不开放注册。</p>
-
-      <form class="login-form" @submit.prevent="submit">
-        <label>
-          <span>用户名</span>
-          <input v-model="form.username" required />
-        </label>
-        <label>
-          <span>密码</span>
-          <input v-model="form.password" type="password" required minlength="6" />
-        </label>
-
-        <template v-if="mode === 'register'">
-          <label>
-            <span>{{ selectedRole === 'COMPANY' ? '联系人' : '姓名' }}</span>
-            <input v-model="form.fullName" required />
-          </label>
-          <label>
-            <span>{{ selectedRole === 'COMPANY' ? '公司名称' : '专业' }}</span>
-            <input v-model="form.major" />
-          </label>
-          <label>
-            <span>邮箱</span>
-            <input v-model="form.email" type="email" />
-          </label>
-          <label>
-            <span>手机号</span>
-            <input v-model="form.phone" />
-          </label>
-          <label v-if="selectedRole === 'JOB_SEEKER'">
-            <span>毕业年份</span>
-            <input v-model="form.graduationYear" type="number" />
-          </label>
-        </template>
-
-        <button class="login-submit" :disabled="loading">{{ mode === 'login' ? '登录' : '注册并登录' }}</button>
-      </form>
-      <p v-if="message" class="login-message">{{ message }}</p>
     </div>
   </div>
 </template>

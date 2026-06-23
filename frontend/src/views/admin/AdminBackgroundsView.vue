@@ -14,77 +14,54 @@ function imageUrl(item) {
 }
 
 async function loadBackgrounds() {
-  loading.value = true
-  message.value = ''
-  try {
-    backgrounds.value = await api('/backgrounds')
-  } catch (error) {
-    message.value = error.message || '背景图加载失败'
-  } finally {
-    loading.value = false
-  }
+  loading.value = true; message.value = ''
+  try { backgrounds.value = await api('/backgrounds') } catch (e) { message.value = e.message || '背景图加载失败' } finally { loading.value = false }
 }
 
 async function uploadBackground(item, event) {
   const file = event.target.files?.[0]
   if (!file) return
-  const formData = new FormData()
-  formData.append('file', file)
-  uploadingKey.value = item.pageKey
-  message.value = ''
+  const formData = new FormData(); formData.append('file', file)
+  uploadingKey.value = item.pageKey; message.value = ''
   try {
-    await api(`/backgrounds/${item.pageKey}`, {
-      method: 'POST',
-      body: formData,
-      timeout: 10000
-    })
-    await loadBackgrounds()
-    message.value = `${item.pageName} 背景图已更新`
-  } catch (error) {
-    message.value = error.message || '上传失败'
-  } finally {
-    uploadingKey.value = ''
-    event.target.value = ''
-  }
+    await api(`/backgrounds/${item.pageKey}`, { method: 'POST', body: formData, timeout: 10000 })
+    await loadBackgrounds(); message.value = `${item.pageName} 背景图已更新`
+  } catch (e) { message.value = e.message || '上传失败' } finally { uploadingKey.value = ''; event.target.value = '' }
 }
 
 onMounted(loadBackgrounds)
 </script>
 
 <template>
-  <section class="admin-panel">
-    <div class="admin-panel-head">
+  <div class="adm-page">
+    <div class="adm-page-head">
       <div>
         <h2>背景管理</h2>
-        <p>默认背景图存放在后端服务，管理员可以为每个页面上传新背景图。</p>
+        <span>为每个页面上传背景图</span>
       </div>
-      <button class="admin-logout" @click="loadBackgrounds">刷新</button>
+      <button class="adm-btn-outline" @click="loadBackgrounds">刷新</button>
     </div>
 
-    <p v-if="loading" class="notice">加载中...</p>
+    <div v-if="loading" class="adm-loading">
+      <div v-for="n in 2" :key="n" class="adm-loading-row"><div class="adm-loading-avatar"></div><div class="adm-loading-lines"><span></span><span style="width:60%"></span></div></div>
+    </div>
 
-    <div v-else class="background-grid">
-      <article v-for="item in backgrounds" :key="item.pageKey" class="background-card">
-        <div class="background-preview">
+    <div v-else class="adm-bg-grid">
+      <div v-for="item in backgrounds" :key="item.pageKey" class="adm-bg-card">
+        <div class="adm-bg-preview">
           <img :src="imageUrl(item)" :alt="item.pageName" />
         </div>
-        <div>
-          <h3>{{ item.pageName }}</h3>
-          <p>页面标识：{{ item.pageKey }}</p>
-          <p>当前地址：{{ item.imageUrl }}</p>
+        <div class="adm-bg-info">
+          <strong>{{ item.pageName }}</strong>
+          <span>{{ item.pageKey }}</span>
         </div>
-        <label class="background-upload">
-          <span>{{ uploadingKey === item.pageKey ? '上传中...' : '上传新背景图' }}</span>
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
-            :disabled="Boolean(uploadingKey)"
-            @change="uploadBackground(item, $event)"
-          />
+        <label class="adm-upload-label">
+          <input type="file" accept="image/*" :disabled="Boolean(uploadingKey)" @change="uploadBackground(item, $event)" />
+          {{ uploadingKey === item.pageKey ? '上传中...' : '上传新背景' }}
         </label>
-      </article>
+      </div>
     </div>
 
-    <p v-if="message" class="notice">{{ message }}</p>
-  </section>
+    <p v-if="message" class="adm-msg">{{ message }}</p>
+  </div>
 </template>
