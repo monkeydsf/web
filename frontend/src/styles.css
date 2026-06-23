@@ -5084,6 +5084,8 @@ button, input, select, textarea { font: inherit; }
   .adm-bg-grid { grid-template-columns: 1fr; }
   .adm-list-item { flex-direction: column; align-items: flex-start; gap: 8px; }
   .adm-list-head { display: none; }
+  .adm-tabs { overflow-x: auto; flex-wrap: nowrap; }
+  .adm-tab { white-space: nowrap; flex-shrink: 0; }
   .ac-top { flex-direction: column; }
   .ac-actions { flex-wrap: wrap; }
   .ac-timeline { flex-wrap: wrap; gap: 12px; }
