@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 
-const API_BASE = 'http://localhost:8087/api'
+const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 const SESSION_KEY = 'campus-career-session'
 
 function safeJsonParse(text) {
