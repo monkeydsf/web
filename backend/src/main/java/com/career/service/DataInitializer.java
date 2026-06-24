@@ -34,6 +34,7 @@ public class DataInitializer implements CommandLineRunner {
         createUserIfMissing("admin", "admin123", "就业中心管理员", Role.ADMIN, "career-office@school.edu");
         createUserIfMissing("student", "student123", "李明", Role.JOB_SEEKER, "liming@example.com");
         createUserIfMissing("company", "company123", "星途科技招聘专员", Role.COMPANY, "hr@xingtu.example.com");
+        syncDemoCompanyAccount();
 
         initJobs();
         initBackgrounds();
@@ -105,6 +106,15 @@ public class DataInitializer implements CommandLineRunner {
         user.setMajor(role == Role.JOB_SEEKER ? "软件工程" : "招聘管理");
         user.setGraduationYear(role == Role.JOB_SEEKER ? 2026 : null);
         userRepository.save(user);
+    }
+
+    private void syncDemoCompanyAccount() {
+        userRepository.findByUsername("company").ifPresent(user -> {
+            if (user.getRole() == Role.COMPANY && !"星途科技".equals(user.getMajor())) {
+                user.setMajor("星途科技");
+                userRepository.save(user);
+            }
+        });
     }
 
     private Job sampleJob(String title, String company, String city, String type, Integer min, Integer max,

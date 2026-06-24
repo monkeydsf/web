@@ -49,7 +49,7 @@ public class Resume {
     @Column(length = 1000)
     private String fileUrl;
 
-    @Column(length = 12000)
+    @Column(columnDefinition = "TEXT")
     private String parsedText;
 
     @Column(nullable = false)

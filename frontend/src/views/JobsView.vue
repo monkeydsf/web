@@ -1,9 +1,10 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { api, getSession } from '../api'
 import { mockJobs } from '../data/mockJobs'
 
+const route = useRoute()
 const router = useRouter()
 const jobs = ref([])
 const loading = ref(true)
@@ -23,6 +24,8 @@ const favorites = ref([])
 const historyJobs = ref([])
 const cityOptions = ref([])
 const jobTypeOptions = ref([])
+const hoverJob = ref(null)
+const hoverPos = ref({ x: 0, y: 0 })
 
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredJobs.value.length / pageSize)))
 const pagedJobs = computed(() => {
@@ -61,12 +64,20 @@ function salaryText(job) {
 function filterJobs() {
   let result = [...jobs.value]
   if (keyword.value) {
-    const kw = keyword.value.toLowerCase()
-    result = result.filter((job) => [job.title, job.company, job.description].some((item) => item?.toLowerCase().includes(kw)))
+    const kw = keyword.value.trim().toLowerCase()
+    if (kw) {
+      const keywords = kw.split(/\s+/)
+      result = result.filter((job) => {
+        const text = `${job.title} ${job.company} ${job.description || ''} ${job.requirementText || ''} ${job.city || ''} ${job.jobType || ''}`.toLowerCase()
+        return keywords.every(k => text.includes(k))
+      })
+    }
   }
   if (city.value) {
-    const c = city.value.toLowerCase()
-    result = result.filter((job) => job.city.toLowerCase().includes(c))
+    const c = city.value.trim().toLowerCase()
+    if (c) {
+      result = result.filter((job) => job.city.toLowerCase().includes(c))
+    }
   }
   if (jobType.value) {
     result = result.filter((job) => job.jobType === jobType.value)
@@ -169,6 +180,21 @@ async function loadFavorites() {
   try { favorites.value = await api('/favorites') } catch { favorites.value = [] }
 }
 
+function onJobHover(job, event) {
+  hoverJob.value = job
+  const rect = event.currentTarget.getBoundingClientRect()
+  hoverPos.value = { x: rect.right + 12, y: rect.top }
+}
+
+function onJobLeave() {
+  hoverJob.value = null
+}
+
+function goJobDetail(job) {
+  hoverJob.value = null
+  openApply(job)
+}
+
 async function loadJobs() {
   loading.value = true
   notice.value = ''
@@ -184,8 +210,7 @@ async function loadJobs() {
     jobs.value = mockJobs
   } finally {
     loading.value = false
-    filteredJobs.value = [...jobs.value]
-    currentPage.value = 1
+    filterJobs()
     cityOptions.value = [...new Set(jobs.value.map((job) => job.city))].filter(Boolean)
     jobTypeOptions.value = [...new Set(jobs.value.map((job) => job.jobType))].filter(Boolean)
     historyJobs.value = loadLocalList('campus-career-job-history')
@@ -193,7 +218,21 @@ async function loadJobs() {
   }
 }
 
-onMounted(loadJobs)
+// Read route query params on mount
+onMounted(() => {
+  if (route.query.keyword) keyword.value = route.query.keyword
+  if (route.query.city) city.value = route.query.city
+  if (route.query.jobType) jobType.value = route.query.jobType
+  loadJobs()
+})
+
+// Watch for route query changes (e.g. navigating from homepage again)
+watch(() => route.query, (q) => {
+  if (q.keyword !== undefined) keyword.value = q.keyword || ''
+  if (q.city !== undefined) city.value = q.city || ''
+  if (q.jobType !== undefined) jobType.value = q.jobType || ''
+  filterJobs()
+})
 
 const avatarColors = ['av-blue', 'av-green', 'av-purple', 'av-orange', 'av-teal']
 function companyInitial(name) { return name ? name.charAt(0) : '·' }
@@ -210,14 +249,8 @@ function avatarColor(index) { return avatarColors[index % avatarColors.length] }
           <p>浏览 {{ filteredJobs.length }} 个岗位，找到适合你的机会</p>
         </div>
         <div class="jobs-hero-stats">
-          <div class="jhs-item">
-            <strong>{{ favorites.length }}</strong>
-            <span>已收藏</span>
-          </div>
-          <div class="jhs-item">
-            <strong>{{ historyJobs.length }}</strong>
-            <span>已浏览</span>
-          </div>
+          <div class="jhs-item"><strong>{{ favorites.length }}</strong><span>已收藏</span></div>
+          <div class="jhs-item"><strong>{{ historyJobs.length }}</strong><span>已浏览</span></div>
         </div>
       </div>
     </section>
@@ -230,16 +263,10 @@ function avatarColor(index) { return avatarColors[index % avatarColors.length] }
           <input v-model="keyword" type="text" placeholder="搜索职位、公司、关键词" />
         </div>
         <div class="jfb-field">
-          <select v-model="city">
-            <option value="">全部城市</option>
-            <option v-for="item in cityOptions" :key="item" :value="item">{{ item }}</option>
-          </select>
+          <select v-model="city"><option value="">全部城市</option><option v-for="item in cityOptions" :key="item" :value="item">{{ item }}</option></select>
         </div>
         <div class="jfb-field">
-          <select v-model="jobType">
-            <option value="">全部类型</option>
-            <option v-for="item in jobTypeOptions" :key="item" :value="item">{{ item }}</option>
-          </select>
+          <select v-model="jobType"><option value="">全部类型</option><option v-for="item in jobTypeOptions" :key="item" :value="item">{{ item }}</option></select>
         </div>
         <button class="jfb-search-btn" type="submit">筛选</button>
       </form>
@@ -253,18 +280,14 @@ function avatarColor(index) { return avatarColors[index % avatarColors.length] }
           <div class="js-block">
             <strong>收藏岗位</strong>
             <div v-if="favorites.length" class="js-list">
-              <button v-for="item in favorites" :key="item.id" type="button" class="js-item" @click="router.push(`/jobs#job-${item.job.id}`)">
-                {{ item.job.title }}
-              </button>
+              <button v-for="item in favorites" :key="item.id" type="button" class="js-item" @click="router.push(`/jobs#job-${item.job.id}`)">{{ item.job.title }}</button>
             </div>
             <p v-else class="js-empty">暂无收藏</p>
           </div>
           <div class="js-block">
             <strong>最近浏览</strong>
             <div v-if="historyJobs.length" class="js-list">
-              <button v-for="item in historyJobs" :key="item.id" type="button" class="js-item" @click="router.push(`/jobs#job-${item.id}`)">
-                {{ item.title }}
-              </button>
+              <button v-for="item in historyJobs" :key="item.id" type="button" class="js-item" @click="router.push(`/jobs#job-${item.id}`)">{{ item.title }}</button>
             </div>
             <p v-else class="js-empty">暂无浏览记录</p>
           </div>
@@ -285,7 +308,9 @@ function avatarColor(index) { return avatarColors[index % avatarColors.length] }
                 v-for="(job, idx) in pagedJobs"
                 :key="job.id"
                 class="job-row-v2"
-                @mouseenter="recordHistory(job)"
+                @mouseenter="onJobHover(job, $event)"
+                @mouseleave="onJobLeave"
+                @click="goJobDetail(job)"
               >
                 <div class="jrv-avatar" :class="avatarColor(idx)">{{ companyInitial(job.company) }}</div>
                 <div class="jrv-left">
@@ -304,7 +329,7 @@ function avatarColor(index) { return avatarColors[index % avatarColors.length] }
                 </div>
                 <div class="jrv-right">
                   <span class="jrv-salary">{{ salaryText(job) }}</span>
-                  <div class="jrv-actions">
+                  <div class="jrv-actions" @click.stop>
                     <button class="jrv-btn" type="button" @click.stop="toggleFavorite(job)" :title="isFavorite(job) ? '取消收藏' : '收藏'">
                       <svg width="15" height="15" viewBox="0 0 24 24" :fill="isFavorite(job) ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                     </button>
@@ -317,9 +342,7 @@ function avatarColor(index) { return avatarColors[index % avatarColors.length] }
               </div>
             </div>
 
-            <div v-if="filteredJobs.length === 0" class="jobs-empty">
-              <p>没有找到匹配的职位，换个关键词试试</p>
-            </div>
+            <div v-if="filteredJobs.length === 0" class="jobs-empty"><p>没有找到匹配的职位，换个关键词试试</p></div>
 
             <nav v-if="totalPages > 1" class="jobs-pagination">
               <button type="button" :disabled="currentPage === 1" @click="changePage(currentPage - 1)">上一页</button>
@@ -333,21 +356,36 @@ function avatarColor(index) { return avatarColors[index % avatarColors.length] }
       </div>
     </section>
 
+    <!-- Hover preview card -->
+    <Teleport to="body">
+      <div v-if="hoverJob" class="job-preview-card" :style="{ top: hoverPos.y + 'px', left: hoverPos.x + 'px' }">
+        <div class="jpc-header">
+          <span class="jpc-type" :class="hoverJob.jobType === '实习' ? 'type-intern' : 'type-campus'">{{ hoverJob.jobType }}</span>
+          <span class="jpc-salary">{{ salaryText(hoverJob) }}</span>
+        </div>
+        <h3>{{ hoverJob.title }}</h3>
+        <p class="jpc-company">{{ hoverJob.company }} · {{ hoverJob.city }}</p>
+        <p class="jpc-desc">{{ hoverJob.description }}</p>
+        <div v-if="hoverJob.requirementText" class="jpc-req">
+          <strong>任职要求</strong>
+          <p>{{ hoverJob.requirementText }}</p>
+        </div>
+        <div class="jpc-footer">
+          <span>{{ hoverJob.educationRequirement }}</span>
+          <button type="button" @click.stop="goJobDetail(hoverJob)">查看详情</button>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- Apply Modal -->
     <div v-if="selectedJob" class="modal-backdrop" @click.self="closeApply">
       <section class="apply-modal-v2" role="dialog" aria-modal="true">
         <div class="amv-head">
-          <div>
-            <h2>投递岗位</h2>
-            <p>{{ selectedJob.company }} · {{ selectedJob.title }}</p>
-          </div>
+          <div><h2>投递岗位</h2><p>{{ selectedJob.company }} · {{ selectedJob.title }}</p></div>
           <button class="amv-close" type="button" @click="closeApply">&times;</button>
         </div>
         <form class="amv-form" @submit.prevent="submitApplication">
-          <label>
-            <span>投递留言</span>
-            <textarea v-model="coverLetter" maxlength="1000" required></textarea>
-          </label>
+          <label><span>投递留言</span><textarea v-model="coverLetter" maxlength="1000" required></textarea></label>
           <button class="amv-submit" type="submit" :disabled="submitting">{{ submitting ? '提交中...' : '确认投递' }}</button>
         </form>
         <p v-if="applyMessage" class="amv-msg">{{ applyMessage }}</p>

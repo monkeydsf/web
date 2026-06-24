@@ -55,6 +55,18 @@ public class JobController {
                 .toList();
     }
 
+    @GetMapping("/mine")
+    public List<JobDto> myJobs(@RequestHeader("X-Token") String token) {
+        var user = authService.requireEmployer(token);
+        String companyName = user.getMajor();
+        if (!StringUtils.hasText(companyName)) {
+            companyName = user.getFullName();
+        }
+        return jobRepository.findByCompanyOrderByCreatedAtDesc(companyName.trim()).stream()
+                .map(JobDto::from)
+                .toList();
+    }
+
     @GetMapping("/{id}")
     public JobDto detail(@PathVariable Long id) {
         return JobDto.from(findJob(id));
@@ -62,8 +74,10 @@ public class JobController {
 
     @PostMapping
     public JobDto create(@RequestHeader("X-Token") String token, @Valid @RequestBody JobRequest request) {
-        authService.requireEmployer(token);
+        var user = authService.requireEmployer(token);
+        String companyName = resolveCompanyName(user);
         Job job = apply(new Job(), request);
+        job.setCompany(companyName);
         return JobDto.from(jobRepository.save(job));
     }
 
@@ -71,8 +85,10 @@ public class JobController {
     public JobDto update(@RequestHeader("X-Token") String token,
                          @PathVariable Long id,
                          @Valid @RequestBody JobRequest request) {
-        authService.requireEmployer(token);
+        var user = authService.requireEmployer(token);
+        String companyName = resolveCompanyName(user);
         Job job = apply(findJob(id), request);
+        job.setCompany(companyName);
         return JobDto.from(jobRepository.save(job));
     }
 
@@ -92,7 +108,6 @@ public class JobController {
 
     private Job apply(Job job, JobRequest request) {
         job.setTitle(request.title().trim());
-        job.setCompany(request.company().trim());
         job.setCity(request.city().trim());
         job.setJobType(request.jobType());
         job.setSalaryMin(request.salaryMin());
@@ -102,5 +117,16 @@ public class JobController {
         job.setRequirementText(request.requirementText());
         job.setStatus(request.status() == null ? JobStatus.OPEN : request.status());
         return job;
+    }
+
+    private String resolveCompanyName(com.career.model.User user) {
+        String companyName = user.getMajor();
+        if (!StringUtils.hasText(companyName)) {
+            companyName = user.getFullName();
+        }
+        if (!StringUtils.hasText(companyName)) {
+            throw new IllegalArgumentException("企业名称不能为空");
+        }
+        return companyName.trim();
     }
 }

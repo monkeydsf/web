@@ -118,6 +118,20 @@ public class ApplicationController {
                 .toList();
     }
 
+    @GetMapping("/company")
+    public List<ApplicationDto> companyApps(@RequestHeader("X-Token") String token) {
+        var user = authService.requireEmployer(token);
+        String companyName = user.getMajor();
+        if (companyName == null || companyName.isBlank()) {
+            companyName = user.getFullName();
+        }
+        String cn = companyName.trim();
+        return applicationRepository.findAllByOrderByAppliedAtDesc().stream()
+                .filter(app -> cn.equalsIgnoreCase(app.getJob().getCompany()))
+                .map(ApplicationDto::from)
+                .toList();
+    }
+
     @PutMapping("/{id}/status")
     public ApplicationDto changeStatus(@RequestHeader("X-Token") String token,
                                        @PathVariable Long id,
