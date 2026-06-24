@@ -73,7 +73,7 @@ $body += Paragraph "1. 学生用户：注册登录、浏览岗位、筛选岗位
 $body += Paragraph "2. 公司人员/管理员：登录后台、发布岗位、编辑和删除岗位、审核学生投递、查看统计数据。"
 $body += Heading "1.2 功能清单" 2
 $body += Paragraph "基础功能包括用户注册登录退出、岗位查询、岗位详情、简历维护、岗位投递、投递记录、岗位管理、投递审核。"
-$body += Paragraph "进阶功能包括关键词和城市筛选、后台统计看板、角色权限区分、响应式布局、操作反馈和错误提示。"
+$body += Paragraph "进阶功能包括关键词和城市筛选、后台统计看板、数据可视化图表、角色权限区分、响应式布局、文件上传、操作反馈和错误提示。"
 
 $body += Heading "2. 系统设计" 1
 $body += Paragraph "系统采用前后端分离架构：Vue 前端页面通过 fetch 调用 REST API，Spring Boot 后端处理业务逻辑并通过 Spring Data JPA 访问 MySQL 数据库。"
@@ -120,7 +120,7 @@ $body += Heading "5. 技术说明" 1
 $body += Paragraph "前端使用 Vue 3、Vue Router、Vite 和原生 CSS。登录 token 保存在 localStorage 中，接口调用统一封装在 api.js。后端使用 Spring Boot 3、Spring Web、Spring Data JPA 和 MySQL，使用 X-Token 请求头识别会话，后台接口校验 COMPANY 或 ADMIN 角色，学生端简历和投递接口校验 JOB_SEEKER 或 STUDENT 角色。"
 
 $body += Heading "6. 使用说明" 1
-$body += Paragraph "1. 准备 MySQL，创建数据库 campus_career，账号密码默认 root / 666666。若本机配置不同，请修改 backend/src/main/resources/application.yml。"
+$body += Paragraph "1. 准备 MySQL，账号密码默认 root / 666666。可直接导入 database/schema.sql，该脚本已整合建表语句和演示数据；若本机配置不同，请修改 backend/src/main/resources/application.yml。"
 $body += Paragraph "2. 启动后端：cd backend，然后执行 mvn spring-boot:run。后端地址为 http://localhost:8087。"
 $body += Paragraph "3. 启动前端：cd frontend，执行 npm install 和 npm run dev。前端地址为 http://localhost:5173。"
 $body += Paragraph "4. 演示账号：学生 student / student123；公司人员 company / company123；管理员 admin / admin123。"
@@ -135,8 +135,8 @@ $body += TableXml @(
   @("岗位管理", "后台新增或编辑岗位", "岗位列表更新", "通过"),
   @("投递审核", "后台修改投递状态", "学生端显示新状态", "通过")
 )
-$body += Paragraph "项目亮点：前后端分离清晰，覆盖学生端和后台端，数据库关系完整，角色权限明确，页面支持响应式布局，符合校园求职业务场景。"
-$body += Paragraph "不足与优化方向：当前未实现简历附件上传，后续可增加文件上传、面试邀约、就业趋势图表和更完整的 JWT/Spring Security 权限体系。"
+$body += Paragraph "项目亮点：前后端分离清晰，覆盖学生端和后台端，数据库关系完整，角色权限明确，支持文件上传、AI 求职工具、后台统计图表和响应式布局，符合校园求职业务场景。"
+$body += Paragraph "不足与优化方向：当前鉴权为课程项目轻量实现，后续可升级为 JWT 或 Spring Security；简历版本管理目前仅展示当前版本，后续可扩展多版本历史记录；还可增加岗位分页接口、就业趋势图表和更细粒度的企业资料认证流程。"
 
 $styles = @"
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>

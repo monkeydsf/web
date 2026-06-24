@@ -5,6 +5,7 @@ import com.career.dto.JobDto;
 import com.career.dto.JobRequest;
 import com.career.model.Job;
 import com.career.model.JobStatus;
+import com.career.model.Role;
 import com.career.repository.ApplicationMessageRepository;
 import com.career.repository.JobApplicationRepository;
 import com.career.repository.JobRepository;
@@ -75,7 +76,7 @@ public class JobController {
     @PostMapping
     public JobDto create(@RequestHeader("X-Token") String token, @Valid @RequestBody JobRequest request) {
         var user = authService.requireEmployer(token);
-        String companyName = resolveCompanyName(user);
+        String companyName = resolveCompanyName(user, request);
         Job job = apply(new Job(), request);
         job.setCompany(companyName);
         return JobDto.from(jobRepository.save(job));
@@ -86,16 +87,19 @@ public class JobController {
                          @PathVariable Long id,
                          @Valid @RequestBody JobRequest request) {
         var user = authService.requireEmployer(token);
-        String companyName = resolveCompanyName(user);
-        Job job = apply(findJob(id), request);
+        String companyName = resolveCompanyName(user, request);
+        Job job = findJob(id);
+        requireJobAccess(user, job);
+        apply(job, request);
         job.setCompany(companyName);
         return JobDto.from(jobRepository.save(job));
     }
 
     @DeleteMapping("/{id}")
     public ApiResponse delete(@RequestHeader("X-Token") String token, @PathVariable Long id) {
-        authService.requireEmployer(token);
+        var user = authService.requireEmployer(token);
         Job job = findJob(id);
+        requireJobAccess(user, job);
         messageRepository.deleteByApplication_Job(job);
         applicationRepository.deleteByJob(job);
         jobRepository.delete(job);
@@ -120,6 +124,13 @@ public class JobController {
     }
 
     private String resolveCompanyName(com.career.model.User user) {
+        return resolveCompanyName(user, null);
+    }
+
+    private String resolveCompanyName(com.career.model.User user, JobRequest request) {
+        if (user.getRole() == Role.ADMIN && request != null && StringUtils.hasText(request.company())) {
+            return request.company().trim();
+        }
         String companyName = user.getMajor();
         if (!StringUtils.hasText(companyName)) {
             companyName = user.getFullName();
@@ -128,5 +139,15 @@ public class JobController {
             throw new IllegalArgumentException("企业名称不能为空");
         }
         return companyName.trim();
+    }
+
+    private void requireJobAccess(com.career.model.User user, Job job) {
+        if (user.getRole() == Role.ADMIN) {
+            return;
+        }
+        String companyName = resolveCompanyName(user);
+        if (!companyName.equalsIgnoreCase(job.getCompany())) {
+            throw new SecurityException("只能操作本企业发布的岗位");
+        }
     }
 }

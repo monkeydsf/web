@@ -1,8 +1,7 @@
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, getSession } from '../api'
-import { mockJobs } from '../data/mockJobs'
 
 const route = useRoute()
 const router = useRouter()
@@ -205,9 +204,10 @@ async function loadJobs() {
     if (city.value) params.set('city', city.value)
     if (jobType.value) params.set('jobType', jobType.value)
     const data = await api(`/jobs?${params.toString()}`)
-    jobs.value = Array.isArray(data) && data.length ? data : mockJobs
-  } catch {
-    jobs.value = mockJobs
+    jobs.value = Array.isArray(data) ? data : []
+  } catch (error) {
+    jobs.value = []
+    notice.value = error.message || '岗位加载失败，请确认后端服务已启动'
   } finally {
     loading.value = false
     filterJobs()

@@ -25,9 +25,10 @@ X-Token: 登录后返回的 token
 | --- | --- | --- |
 | GET | /jobs | 岗位列表，支持 keyword、city、status |
 | GET | /jobs/{id} | 岗位详情 |
-| POST | /jobs | 公司人员/管理员新增岗位 |
-| PUT | /jobs/{id} | 公司人员/管理员编辑岗位 |
-| DELETE | /jobs/{id} | 公司人员/管理员删除岗位 |
+| GET | /jobs/mine | 公司人员查看本企业岗位 |
+| POST | /jobs | 公司人员新增本企业岗位，管理员可指定企业名称 |
+| PUT | /jobs/{id} | 公司人员编辑本企业岗位，管理员可编辑任意岗位 |
+| DELETE | /jobs/{id} | 公司人员删除本企业岗位，管理员可删除任意岗位 |
 
 ## 简历接口
 
@@ -35,6 +36,8 @@ X-Token: 登录后返回的 token
 | --- | --- | --- |
 | GET | /resume | 获取当前学生简历 |
 | PUT | /resume | 保存当前学生简历 |
+| POST | /resume/file | 上传当前学生简历附件并解析文本 |
+| GET | /resume/versions | 获取当前简历版本展示 |
 
 ## 投递接口
 
@@ -43,8 +46,9 @@ X-Token: 登录后返回的 token
 | POST | /applications/jobs/{jobId} | 学生投递岗位 |
 | GET | /applications/mine | 学生查看自己的投递 |
 | POST | /applications/{id}/cancel | 学生撤回投递 |
-| GET | /applications | 公司人员/管理员查看全部投递 |
-| PUT | /applications/{id}/status | 公司人员/管理员修改投递状态 |
+| GET | /applications | 管理员查看全部投递；公司人员仅返回本企业投递 |
+| GET | /applications/company | 公司人员查看本企业投递 |
+| PUT | /applications/{id}/status | 公司人员修改本企业投递状态，管理员可修改任意投递 |
 
 ## 统计接口
 
@@ -65,3 +69,5 @@ X-Token: 登录后返回的 token
 | --- | --- | --- |
 | POST | /ai/prompt-test | 不需要 token，仅用提示词测试百炼 AI 调用 |
 | POST | /ai/resume-review | 学生上传简历文件并发送给百炼 AI 生成修改建议，表单字段为 file、prompt |
+| POST | /ai/tools/{toolKey} | 运行工作台 AI 求职工具 |
+| POST | /ai/resume-match/{jobId} | 根据当前学生简历和岗位生成匹配分析 |

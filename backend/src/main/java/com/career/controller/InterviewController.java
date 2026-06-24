@@ -11,6 +11,7 @@ import com.career.repository.JobApplicationRepository;
 import com.career.service.AuthService;
 import com.career.service.NotificationService;
 import jakarta.validation.Valid;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,9 +43,14 @@ public class InterviewController {
     @GetMapping
     public List<InterviewScheduleDto> list(@RequestHeader("X-Token") String token) {
         User user = authService.requireUser(token);
-        List<InterviewSchedule> schedules = (user.getRole() == Role.COMPANY || user.getRole() == Role.ADMIN)
-                ? interviewRepository.findAllByOrderByScheduledAtAsc()
-                : interviewRepository.findByApplication_UserOrderByScheduledAtAsc(user);
+        List<InterviewSchedule> schedules;
+        if (user.getRole() == Role.ADMIN) {
+            schedules = interviewRepository.findAllByOrderByScheduledAtAsc();
+        } else if (user.getRole() == Role.COMPANY) {
+            schedules = interviewRepository.findByApplication_Job_CompanyOrderByScheduledAtAsc(companyName(user));
+        } else {
+            schedules = interviewRepository.findByApplication_UserOrderByScheduledAtAsc(user);
+        }
         return schedules.stream().map(InterviewScheduleDto::from).toList();
     }
 
@@ -52,9 +58,12 @@ public class InterviewController {
     public InterviewScheduleDto create(@RequestHeader("X-Token") String token,
                                        @PathVariable Long applicationId,
                                        @Valid @RequestBody InterviewScheduleRequest request) {
-        authService.requireEmployer(token);
+        User user = authService.requireEmployer(token);
         JobApplication application = applicationRepository.findById(applicationId)
                 .orElseThrow(() -> new IllegalArgumentException("投递记录不存在"));
+        if (user.getRole() == Role.COMPANY && !companyName(user).equalsIgnoreCase(application.getJob().getCompany())) {
+            throw new SecurityException("只能为本企业岗位安排面试");
+        }
         InterviewSchedule schedule = new InterviewSchedule();
         schedule.setApplication(application);
         schedule.setScheduledAt(request.scheduledAt());
@@ -74,5 +83,16 @@ public class InterviewController {
                 "你有一场 " + application.getJob().getTitle() + " 的面试安排"
         );
         return InterviewScheduleDto.from(saved);
+    }
+
+    private String companyName(User user) {
+        String companyName = user.getMajor();
+        if (!StringUtils.hasText(companyName)) {
+            companyName = user.getFullName();
+        }
+        if (!StringUtils.hasText(companyName)) {
+            throw new IllegalArgumentException("企业名称不能为空");
+        }
+        return companyName.trim();
     }
 }

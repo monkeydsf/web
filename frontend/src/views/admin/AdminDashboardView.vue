@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { api } from '../../api'
 
 const stats = ref({
@@ -20,6 +20,31 @@ const statItems = [
   { key: 'reportCount', label: '岗位举报', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z', color: '#e11d48' },
   { key: 'favoriteCount', label: '收藏岗位', icon: 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z', color: '#4a90e2' }
 ]
+
+const applicationChart = computed(() => {
+  const pending = stats.value.pendingCount || 0
+  const accepted = stats.value.acceptedCount || 0
+  const other = Math.max((stats.value.applicationCount || 0) - pending - accepted, 0)
+  return [
+    { label: '待审核', value: pending, color: '#d97706' },
+    { label: '已通过', value: accepted, color: '#059669' },
+    { label: '其他状态', value: other, color: '#4a90e2' }
+  ]
+})
+
+const operationChart = computed(() => [
+  { label: '在招岗位', value: stats.value.openJobCount || 0, color: '#059669' },
+  { label: '投递总数', value: stats.value.applicationCount || 0, color: '#7c3aed' },
+  { label: '面试安排', value: stats.value.interviewCount || 0, color: '#0891b2' },
+  { label: '收藏岗位', value: stats.value.favoriteCount || 0, color: '#4a90e2' }
+])
+
+const maxOperationValue = computed(() => Math.max(...operationChart.value.map(item => item.value), 1))
+
+function chartPercent(value, total) {
+  if (!total) return 0
+  return Math.round((value / total) * 100)
+}
 
 async function loadStats() {
   loading.value = true
@@ -47,6 +72,42 @@ onMounted(loadStats)
           <strong>{{ loading ? '...' : stats[item.key] }}</strong>
         </div>
       </div>
+    </div>
+
+    <div class="dashboard-chart-grid">
+      <section class="dashboard-chart-card">
+        <div class="dashboard-chart-head">
+          <h3>投递状态分布</h3>
+          <span>{{ loading ? '加载中' : `${stats.applicationCount} 份投递` }}</span>
+        </div>
+        <div class="status-bars">
+          <div v-for="item in applicationChart" :key="item.label" class="status-bar-row">
+            <div class="status-bar-meta">
+              <span>{{ item.label }}</span>
+              <strong>{{ loading ? '...' : item.value }}</strong>
+            </div>
+            <div class="status-bar-track">
+              <div class="status-bar-fill" :style="{ width: chartPercent(item.value, stats.applicationCount) + '%', background: item.color }"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="dashboard-chart-card">
+        <div class="dashboard-chart-head">
+          <h3>运营指标对比</h3>
+          <span>岗位、投递、面试、收藏</span>
+        </div>
+        <div class="metric-bar-chart">
+          <div v-for="item in operationChart" :key="item.label" class="metric-bar-item">
+            <div class="metric-bar-wrap">
+              <div class="metric-bar" :style="{ height: (loading ? 12 : Math.max((item.value / maxOperationValue) * 120, item.value ? 16 : 4)) + 'px', background: item.color }"></div>
+            </div>
+            <strong>{{ loading ? '...' : item.value }}</strong>
+            <span>{{ item.label }}</span>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </template>

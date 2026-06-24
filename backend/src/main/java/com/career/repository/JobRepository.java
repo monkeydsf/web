@@ -31,4 +31,6 @@ public interface JobRepository extends JpaRepository<Job, Long> {
     List<Job> findByCompanyOrderByCreatedAtDesc(String company);
 
     long countByStatus(JobStatus status);
+
+    long countByCompanyAndStatus(String company, JobStatus status);
 }

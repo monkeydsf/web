@@ -13,7 +13,7 @@
 ```text
 backend/   Spring Boot 后端接口服务
 frontend/  Vue 前端项目
-database/  数据库表结构说明
+database/  一体化建表和演示数据 SQL
 docs/      大作业文档草稿
 ```
 
@@ -34,6 +34,12 @@ MySQL 配置：
 - 数据库：`campus_career`
 - 用户名：`root`
 - 密码：`666666`
+
+如需手动初始化数据库，可导入一体化脚本：
+
+```bash
+mysql -u root -p < database/schema.sql
+```
 
 百炼 AI 配置：
 
@@ -66,10 +72,10 @@ npm run dev
 - 改简历页面可上传 PDF、DOC、DOCX、TXT 简历文件，并通过后端调用阿里云百炼模型生成修改建议
 - 学生岗位投递、查看投递记录、撤回投递
 - 公司人员/管理员发布、编辑、删除岗位
-- 公司人员/管理员查看投递记录、更新审核状态
-- 公司人员/管理员查看学生数、开放岗位数、投递数、待审核数等统计数据
+- 公司人员查看本企业投递记录，管理员查看全部投递记录
+- 公司人员/管理员查看学生数、开放岗位数、投递数、待审核数等统计数据，并通过图表展示状态分布和运营指标
 - 管理员维护各页面背景图，默认图片由后端服务器提供，上传图片保存到 `backend/uploads/backgrounds`
 
 ## 备注
 
-本项目使用 MySQL 数据库，后端首次启动会自动创建演示账号和示例岗位。若本地 MySQL 账号密码不同，请修改 `backend/src/main/resources/application.yml`。
+本项目使用 MySQL 数据库，`database/schema.sql` 已整合建表语句和演示数据。后端首次启动也会自动补充演示账号和示例岗位。若本地 MySQL 账号密码不同，请修改 `backend/src/main/resources/application.yml`。

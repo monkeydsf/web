@@ -16,6 +16,7 @@ import com.career.repository.ApplicationMessageRepository;
 import com.career.service.AuthService;
 import com.career.service.NotificationService;
 import jakarta.validation.Valid;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -101,6 +102,9 @@ public class ApplicationController {
                 && !application.getUser().getId().equals(user.getId())) {
             throw new SecurityException("只能查看自己的投递");
         }
+        if (user.getRole() == Role.COMPANY) {
+            requireCompanyApplicationAccess(user, application);
+        }
         if (user.getRole() != Role.JOB_SEEKER
                 && user.getRole() != Role.STUDENT
                 && user.getRole() != Role.COMPANY
@@ -112,7 +116,10 @@ public class ApplicationController {
 
     @GetMapping
     public List<ApplicationDto> all(@RequestHeader("X-Token") String token) {
-        authService.requireEmployer(token);
+        User user = authService.requireEmployer(token);
+        if (user.getRole() != Role.ADMIN) {
+            return companyApplications(user);
+        }
         return applicationRepository.findAllByOrderByAppliedAtDesc().stream()
                 .map(ApplicationDto::from)
                 .toList();
@@ -120,14 +127,13 @@ public class ApplicationController {
 
     @GetMapping("/company")
     public List<ApplicationDto> companyApps(@RequestHeader("X-Token") String token) {
-        var user = authService.requireEmployer(token);
-        String companyName = user.getMajor();
-        if (companyName == null || companyName.isBlank()) {
-            companyName = user.getFullName();
-        }
-        String cn = companyName.trim();
-        return applicationRepository.findAllByOrderByAppliedAtDesc().stream()
-                .filter(app -> cn.equalsIgnoreCase(app.getJob().getCompany()))
+        User user = authService.requireEmployer(token);
+        return companyApplications(user);
+    }
+
+    private List<ApplicationDto> companyApplications(User user) {
+        String companyName = resolveCompanyName(user);
+        return applicationRepository.findByJob_CompanyOrderByAppliedAtDesc(companyName).stream()
                 .map(ApplicationDto::from)
                 .toList();
     }
@@ -136,9 +142,10 @@ public class ApplicationController {
     public ApplicationDto changeStatus(@RequestHeader("X-Token") String token,
                                        @PathVariable Long id,
                                        @Valid @RequestBody ApplicationStatusRequest request) {
-        authService.requireEmployer(token);
+        User user = authService.requireEmployer(token);
         JobApplication application = applicationRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("投递记录不存在"));
+        requireCompanyApplicationAccess(user, application);
         application.setStatus(request.status());
         JobApplication saved = applicationRepository.save(application);
         notificationService.notifyStudent(
@@ -161,5 +168,26 @@ public class ApplicationController {
         messageRepository.deleteByApplication(application);
         applicationRepository.delete(application);
         return new ApiResponse("投递已撤回");
+    }
+
+    private void requireCompanyApplicationAccess(User user, JobApplication application) {
+        if (user.getRole() == Role.ADMIN) {
+            return;
+        }
+        String companyName = resolveCompanyName(user);
+        if (!companyName.equalsIgnoreCase(application.getJob().getCompany())) {
+            throw new SecurityException("只能操作本企业岗位的投递");
+        }
+    }
+
+    private String resolveCompanyName(User user) {
+        String companyName = user.getMajor();
+        if (!StringUtils.hasText(companyName)) {
+            companyName = user.getFullName();
+        }
+        if (!StringUtils.hasText(companyName)) {
+            throw new IllegalArgumentException("企业名称不能为空");
+        }
+        return companyName.trim();
     }
 }

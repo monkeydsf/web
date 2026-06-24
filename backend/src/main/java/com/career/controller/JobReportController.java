@@ -52,7 +52,7 @@ public class JobReportController {
 
     @GetMapping
     public List<JobReportDto> all(@RequestHeader("X-Token") String token) {
-        authService.requireEmployer(token);
+        authService.requireAdmin(token);
         return reportRepository.findAllByOrderByCreatedAtDesc().stream().map(JobReportDto::from).toList();
     }
 
@@ -60,7 +60,7 @@ public class JobReportController {
     public JobReportDto updateStatus(@RequestHeader("X-Token") String token,
                                      @PathVariable Long id,
                                      @Valid @RequestBody JobReportStatusRequest request) {
-        authService.requireEmployer(token);
+        authService.requireAdmin(token);
         JobReport report = reportRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("举报不存在"));
         report.setStatus(request.status());

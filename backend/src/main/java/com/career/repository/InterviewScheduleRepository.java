@@ -12,5 +12,9 @@ public interface InterviewScheduleRepository extends JpaRepository<InterviewSche
 
     List<InterviewSchedule> findByApplication_UserOrderByScheduledAtAsc(User user);
 
+    List<InterviewSchedule> findByApplication_Job_CompanyOrderByScheduledAtAsc(String company);
+
     List<InterviewSchedule> findAllByOrderByScheduledAtAsc();
+
+    long countByApplication_Job_Company(String company);
 }

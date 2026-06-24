@@ -6,6 +6,7 @@ import com.career.model.Role;
 import com.career.repository.ApplicationMessageRepository;
 import com.career.repository.JobApplicationRepository;
 import com.career.service.AuthService;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,9 +32,14 @@ public class ConversationController {
     @GetMapping
     public List<ConversationDto> list(@RequestHeader("X-Token") String token) {
         var user = authService.requireUser(token);
-        List<JobApplication> applications = (user.getRole() == Role.COMPANY || user.getRole() == Role.ADMIN)
-                ? applicationRepository.findAllByOrderByAppliedAtDesc()
-                : applicationRepository.findByUserOrderByAppliedAtDesc(user);
+        List<JobApplication> applications;
+        if (user.getRole() == Role.ADMIN) {
+            applications = applicationRepository.findAllByOrderByAppliedAtDesc();
+        } else if (user.getRole() == Role.COMPANY) {
+            applications = applicationRepository.findByJob_CompanyOrderByAppliedAtDesc(companyName(user));
+        } else {
+            applications = applicationRepository.findByUserOrderByAppliedAtDesc(user);
+        }
         return applications.stream()
                 .map(application -> {
                     var latest = messageRepository.findTopByApplicationOrderByCreatedAtDesc(application).orElse(null);
@@ -45,5 +51,16 @@ public class ConversationController {
                     return ConversationDto.from(application, latestMessage, latestAt, unread);
                 })
                 .toList();
+    }
+
+    private String companyName(com.career.model.User user) {
+        String companyName = user.getMajor();
+        if (!StringUtils.hasText(companyName)) {
+            companyName = user.getFullName();
+        }
+        if (!StringUtils.hasText(companyName)) {
+            throw new IllegalArgumentException("企业名称不能为空");
+        }
+        return companyName.trim();
     }
 }

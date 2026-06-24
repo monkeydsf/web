@@ -106,8 +106,22 @@ public class ApplicationMessageController {
             return application;
         }
         if (user.getRole() == Role.COMPANY || user.getRole() == Role.ADMIN) {
+            if (user.getRole() == Role.COMPANY && !companyName(user).equalsIgnoreCase(application.getJob().getCompany())) {
+                throw new SecurityException("只能查看本企业岗位的投递沟通");
+            }
             return application;
         }
         throw new SecurityException("无权查看该沟通");
+    }
+
+    private String companyName(User user) {
+        String companyName = user.getMajor();
+        if (!StringUtils.hasText(companyName)) {
+            companyName = user.getFullName();
+        }
+        if (!StringUtils.hasText(companyName)) {
+            throw new IllegalArgumentException("企业名称不能为空");
+        }
+        return companyName.trim();
     }
 }

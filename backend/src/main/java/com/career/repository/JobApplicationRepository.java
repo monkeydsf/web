@@ -18,9 +18,15 @@ public interface JobApplicationRepository extends JpaRepository<JobApplication, 
 
     List<JobApplication> findByUserOrderByAppliedAtDesc(User user);
 
+    List<JobApplication> findByJob_CompanyOrderByAppliedAtDesc(String company);
+
     Optional<JobApplication> findByUserAndJob(User user, Job job);
 
     List<JobApplication> findAllByOrderByAppliedAtDesc();
 
     long countByStatus(ApplicationStatus status);
+
+    long countByJob_Company(String company);
+
+    long countByJob_CompanyAndStatus(String company, ApplicationStatus status);
 }
